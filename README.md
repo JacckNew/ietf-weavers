@@ -1,3 +1,4 @@
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 # IETF Weavers
 
 **Visualising the social and discursive architecture of Internet standard-making**
@@ -64,7 +65,8 @@ Open `visualisation/index.html` in your browser to explore the prototype.
 
 ## 📖 License
 
-This project is released under the MIT License.
+This project’s code and visualisation system are licensed under the MIT License.  
+See the [LICENSE](./LICENSE) file for details.
 
 ---
 
