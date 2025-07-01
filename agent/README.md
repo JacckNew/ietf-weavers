@@ -66,6 +66,19 @@ Key Features:
 - Metadata and statistics inclusion
 - Timeline data support for temporal analysis
 
+#### `data_acquisition.py` - IETF data fetching and normalization
+- **IETFDataAcquisition**: Real IETF data fetching using glasgow-ipl/ietfdata library
+- **DataTracker Integration**: Person metadata from IETF Datatracker
+- **MailArchive Integration**: Email data from IETF mail archives  
+- **Data Normalization**: Converts raw IETF data to pipeline format
+
+Key Features:
+- Direct integration with IETF Datatracker and mail archives
+- Automatic data caching for repeated analysis
+- Person metadata enrichment from Datatracker
+- Support for date ranges and message limits
+- Normalized JSON output compatible with pipeline
+
 ## Data Processing Pipeline
 
 ### Phase 1: Data Collection & Cleaning

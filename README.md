@@ -1,40 +1,13 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 # IETF Weavers
 
-**Visualising the social and discursive architecture of Internet standard-making**
-
-This project explores how technical standards are created within the Internet Engineering Task Force (IETF), by analyzing communication patterns, social structures, and thematic discussions through the lens of social network analysis (SNA) and natural language processing (NLP). The visualisations are rendered using D3.js to make influence, collaboration, and language dynamics visible and explorable.
-
----
-
-## 🔍 Project Goals
-
-- Analyze participant influence and interaction structure within IETF working groups
-- Detect and model dominant discussion topics and how they diffuse over time
-- Compare linguistic behavior and roles using dialogue act and stylistic analysis
-- Present all insights through a fully interactive web-based dashboard
-
----
-
-## 🗂️ Project Structure
-
-```
-ietf-weavers/
-├── data/               # Raw and processed data
-├── src/                # Python scripts for data processing and modeling
-├── notebooks/          # Jupyter notebooks for EDA and development
-├── visualisation/      # D3.js interactive network visualisations
-├── docs/               # Documentation and supporting materials
-├── requirements.txt    # Python dependencies
-└── # 🧠 IETF Weavers
-
 **Social and Discursive Dynamics of Internet Standard-making**
 
 A comprehensive analysis and visualization tool for understanding collaboration patterns, influence networks, and community dynamics within the Internet Engineering Task Force (IETF) through email communication analysis.
 
 ## 📋 Project Overview
 
-IETF Weavers combines social network analysis (SNA) and natural language processing (NLP) to visualize how Internet standards are developed through human collaboration. The project analyzes IETF mailing lists and draft authorship patterns to reveal:
+IETF Weavers combines social network analysis (SNA) and natural language processing (NLP) to visualize how Internet standards are developed through human collaboration. The project analyzes IETF mailing lists and Datatracker metadata to reveal:
 
 - **Social Networks**: Who collaborates with whom in Internet standard development
 - **Influence Patterns**: Key connectors and opinion leaders in technical communities  
@@ -42,43 +15,102 @@ IETF Weavers combines social network analysis (SNA) and natural language process
 - **Topic Evolution**: How technical discussions emerge and evolve over time
 - **Knowledge Transfer**: Patterns of information flow and expertise sharing
 
-## 🚀 Quick Start
+## � Key Features
+
+- **Real IETF Data Integration**: Direct integration with IETF Datatracker and mail archives via [glasgow-ipl/ietfdata](https://github.com/glasgow-ipl/ietfdata)
+- **Automated Data Pipeline**: End-to-end processing from raw emails to interactive visualizations
+- **Social Network Analysis**: Comprehensive metrics including centrality, community detection, and influence scoring
+- **Topic Modeling**: BERTopic-based analysis of discussion themes and evolution
+- **Interactive Visualization**: D3.js dashboard with filtering, search, and drill-down capabilities
+- **Modular Architecture**: Pluggable agent-based system for easy extension and customization
+
+## �🚀 Quick Start
 
 ### Prerequisites
 
 - Python 3.8+
 - Git
+- Internet connection (for fetching IETF data)
 
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/your-username/ietf-weavers.git
    cd ietf-weavers
    ```
 
 2. **Create virtual environment**
+
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
 3. **Install dependencies**
+
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Run with sample data**
+### Usage Options
+
+#### Option 1: Fetch Real IETF Data (Recommended)
+
+1. **List available mailing lists**
+
+   ```bash
+   python fetch_ietf_data.py --list-available
+   ```
+
+2. **Fetch data from specific mailing lists**
+
+   ```bash
+   # Fetch recent data from popular lists
+   python fetch_ietf_data.py --lists ietf cfrg --output data/ietf_recent.json
+
+   # Fetch with specific date range
+   python fetch_ietf_data.py --lists ietf --start-date 2024-01-01T00:00:00 --max-messages 1000
+   ```
+
+3. **Run analysis pipeline**
+
+   ```bash
+   python src/main.py data/ietf_recent.json
+   ```
+
+4. **View results**
+
+   Open `visualisation/index.html` in your web browser
+
+#### Option 2: Use Sample Data
+
+1. **Run with sample data**
+
    ```bash
    python src/main.py data/sample_emails.json
    ```
 
-5. **View results**
+2. **View results**
+
    Open `visualisation/index.html` in your web browser
+
+#### Option 3: Integrated Workflow
+
+Fetch IETF data and run analysis in one command:
+
+```bash
+# Fetch and analyze specific mailing lists
+python src/main.py --fetch-ietf --mailing-lists ietf cfrg --max-messages 500
+
+# List available mailing lists
+python src/main.py --list-available
+```
 
 ## 📁 Repository Structure
 
-```
+```text
 ietf-weavers/
 ├── agent/                      # Backend logic (AI-driven processing engine)
 │   ├── graph_builder.py        # Builds sender–replier social graph
@@ -86,13 +118,17 @@ ietf-weavers/
 │   ├── topic_model.py          # Runs BERTopic to extract discussion themes
 │   ├── formatter.py            # Outputs D3.js-ready JSON files
 │   ├── utils.py                # Email parsing, NER, cleaning
+│   ├── data_acquisition.py     # IETF data fetching using ietfdata library
 │   └── README.md               # Agent responsibilities & usage
 │
 ├── src/                        # Main pipeline script
 │   └── main.py                 # Orchestrates graph + NLP + export
 │
+├── fetch_ietf_data.py          # Standalone IETF data acquisition script
+│
 ├── data/                       # Raw and processed IETF data
-│   └── sample_emails.json      # Example email data
+│   ├── sample_emails.json      # Example email data
+│   └── ietfdata.sqlite         # Cache for IETF data (auto-created)
 │
 ├── notebooks/                  # Prototyping, EDA, and manual validation
 │

@@ -20,6 +20,7 @@ from agent.metrics import NetworkMetrics, calculate_network_metrics
 from agent.topic_model import TopicModeler, run_topic_modeling
 from agent.formatter import D3Formatter, format_for_visualization
 from agent.utils import PersonIdentityResolver, EmailParser
+from agent.data_acquisition import IETFDataAcquisition
 
 
 class IETFWeaversPipeline:
@@ -104,6 +105,86 @@ class IETFWeaversPipeline:
             return email_data
         
         return []
+    
+    def run_phase0_ietf_data_acquisition(self, 
+                                        mailing_lists: List[str],
+                                        output_file: str = None,
+                                        start_date: str = "2023-01-01T00:00:00",
+                                        end_date: str = "2024-12-31T23:59:59",
+                                        max_messages: Optional[int] = None,
+                                        cache_file: str = "ietfdata.sqlite",
+                                        use_cache: bool = True) -> List[Dict]:
+        """
+        Phase 0: IETF Data Acquisition (New)
+        - Fetch real IETF mailing list data using glasgow-ipl/ietfdata
+        - Fetch IETF Datatracker metadata for person normalization
+        - Transform data into pipeline-compatible format
+        - Cache data for repeated analysis
+        """
+        print("=" * 50)
+        print("Phase 0: IETF Data Acquisition")
+        print("=" * 50)
+        
+        try:
+            # Initialize IETF data acquisition
+            data_acq = IETFDataAcquisition(
+                cache_file=cache_file,
+                use_cache=use_cache,
+                log_level="INFO"
+            )
+            
+            # If no specific lists provided, show available lists
+            if not mailing_lists:
+                print("No mailing lists specified. Available lists:")
+                available_lists = data_acq.get_available_mailing_lists()
+                for i, mlist in enumerate(available_lists[:20]):  # Show first 20
+                    print(f"  {mlist}")
+                if len(available_lists) > 20:
+                    print(f"  ... and {len(available_lists) - 20} more")
+                print("\nSpecify mailing lists with --mailing-lists option")
+                return []
+            
+            # Set default output file if not provided
+            if output_file is None:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                output_file = os.path.join(self.config['data_dir'], f"ietf_data_{timestamp}.json")
+            
+            # Fetch and save data
+            print(f"Fetching data from mailing lists: {', '.join(mailing_lists)}")
+            print(f"Date range: {start_date} to {end_date}")
+            if max_messages:
+                print(f"Max messages: {max_messages}")
+            
+            success = data_acq.fetch_and_save_data(
+                mailing_lists=mailing_lists,
+                output_file=output_file,
+                start_date=start_date,
+                end_date=end_date,
+                max_messages=max_messages,
+                update_lists=True,  # Update mailing list data
+                fetch_person_metadata=True  # Fetch person metadata
+            )
+            
+            if not success:
+                print("Failed to fetch IETF data")
+                return []
+            
+            # Load the fetched data for pipeline processing
+            print(f"Loading fetched data from: {output_file}")
+            with open(output_file, 'r') as f:
+                email_data = json.load(f)
+            
+            print(f"Successfully fetched {len(email_data)} messages from IETF")
+            return email_data
+        
+        except ImportError:
+            print("Error: ietfdata library not available")
+            print("Install with: pip install ietfdata")
+            return []
+        
+        except Exception as e:
+            print(f"Error in IETF data acquisition: {e}")
+            return []
     
     def run_phase1_data_collection(self, data_source: str) -> List[Dict]:
         """
@@ -353,12 +434,53 @@ class IETFWeaversPipeline:
 def main():
     """Main entry point for the pipeline."""
     parser = argparse.ArgumentParser(description='IETF Weavers Analysis Pipeline')
-    parser.add_argument('data_source', help='Path to email data file or directory')
+    parser.add_argument('data_source', nargs='?', help='Path to email data file or directory (optional if using --fetch-ietf)')
     parser.add_argument('--output-dir', default='visualisation', help='Output directory')
     parser.add_argument('--n-topics', type=int, default=50, help='Number of topics for modeling')
     parser.add_argument('--time-window', type=int, default=6, help='Time window in months')
     
+    # IETF data acquisition options
+    parser.add_argument('--fetch-ietf', action='store_true', 
+                        help='Fetch data from IETF using ietfdata library')
+    parser.add_argument('--mailing-lists', nargs='+',
+                        help='IETF mailing lists to fetch (e.g., ietf cfrg)')
+    parser.add_argument('--start-date', default='2023-01-01T00:00:00',
+                        help='Start date for IETF data (ISO format)')
+    parser.add_argument('--end-date', default='2024-12-31T23:59:59',
+                        help='End date for IETF data (ISO format)')
+    parser.add_argument('--max-messages', type=int,
+                        help='Maximum messages to fetch from IETF')
+    parser.add_argument('--cache-file', default='ietfdata.sqlite',
+                        help='SQLite cache file for ietfdata')
+    parser.add_argument('--no-cache', action='store_true',
+                        help='Use live queries instead of cache')
+    parser.add_argument('--list-available', action='store_true',
+                        help='List available IETF mailing lists and exit')
+    
     args = parser.parse_args()
+    
+    # Handle list available mailing lists
+    if args.list_available:
+        try:
+            from agent.data_acquisition import IETFDataAcquisition
+            data_acq = IETFDataAcquisition(
+                cache_file=args.cache_file,
+                use_cache=not args.no_cache
+            )
+            print("Available IETF mailing lists:")
+            lists = data_acq.get_available_mailing_lists()
+            for mlist in lists[:50]:  # Show first 50
+                print(f"  {mlist}")
+            if len(lists) > 50:
+                print(f"  ... and {len(lists) - 50} more")
+            return 0
+        except Exception as e:
+            print(f"Error listing mailing lists: {e}")
+            return 1
+    
+    # Validate arguments
+    if not args.fetch_ietf and not args.data_source:
+        parser.error("Either provide data_source or use --fetch-ietf")
     
     # Configuration
     config = {
@@ -377,7 +499,34 @@ def main():
     
     # Run pipeline
     pipeline = IETFWeaversPipeline(config)
-    results = pipeline.run_complete_pipeline(args.data_source)
+    
+    # Determine data source
+    if args.fetch_ietf:
+        # Fetch IETF data first
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ietf_data_file = os.path.join(config['data_dir'], f"ietf_data_{timestamp}.json")
+        
+        email_data = pipeline.run_phase0_ietf_data_acquisition(
+            mailing_lists=args.mailing_lists or [],
+            output_file=ietf_data_file,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            max_messages=args.max_messages,
+            cache_file=args.cache_file,
+            use_cache=not args.no_cache
+        )
+        
+        if not email_data:
+            print("Failed to fetch IETF data")
+            return 1
+        
+        # Use the fetched data as data source
+        data_source = ietf_data_file
+    else:
+        data_source = args.data_source
+    
+    # Run the rest of the pipeline
+    results = pipeline.run_complete_pipeline(data_source)
     
     if results.get('success'):
         print("\n🎉 Ready for visualization! Open visualisation/index.html to view results.")
