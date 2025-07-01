@@ -1,12 +1,8 @@
 {
   "alice@example.com": "person_000001",
-  "bob@security.org": "person_000002",
+  "bob@example.org": "person_000002",
   "carol@university.edu": "person_000003",
-  "dave@tech.com": "person_000004",
-  "eve@startup.io": "person_000005",
-  "frank@telecom.net": "person_000006",
-  "grace@privacy.org": "person_000007",
-  "henry@mobile.com": "person_000008",
-  "iris@quantum.lab": "person_000009",
-  "jack@fintech.bank": "person_000010"
+  "dave@company.com": "person_000004",
+  "eve@isp.net": "person_000005",
+  "frank@router-vendor.com": "person_000006"
 }

@@ -3,30 +3,18 @@
     "alice@example.com"
   ],
   "person_000002": [
-    "bob@security.org"
+    "bob@example.org"
   ],
   "person_000003": [
     "carol@university.edu"
   ],
   "person_000004": [
-    "dave@tech.com"
+    "dave@company.com"
   ],
   "person_000005": [
-    "eve@startup.io"
+    "eve@isp.net"
   ],
   "person_000006": [
-    "frank@telecom.net"
-  ],
-  "person_000007": [
-    "grace@privacy.org"
-  ],
-  "person_000008": [
-    "henry@mobile.com"
-  ],
-  "person_000009": [
-    "iris@quantum.lab"
-  ],
-  "person_000010": [
-    "jack@fintech.bank"
+    "frank@router-vendor.com"
   ]
 }

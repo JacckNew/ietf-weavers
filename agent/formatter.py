@@ -4,15 +4,38 @@ Formats graph and topic data for visualization.
 """
 
 import json
-from typing import Dict, List, Any, Optional
+import math
+from typing import Dict, List, Any, Optional, Tuple
+from collections import defaultdict
+import os
 from datetime import datetime
 
+# Check if NetworkX is available
 try:
     import networkx as nx
     NETWORKX_AVAILABLE = True
 except ImportError:
     NETWORKX_AVAILABLE = False
-    print("Warning: NetworkX not available. Please install: pip install networkx")
+    nx = None
+
+def sanitize_for_json(obj):
+    """
+    Recursively sanitize data for JSON serialization.
+    Replace Infinity, -Infinity, and NaN with appropriate values.
+    """
+    if isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [sanitize_for_json(item) for item in obj]
+    elif isinstance(obj, float):
+        if math.isnan(obj):
+            return 0.0  # Replace NaN with 0
+        elif math.isinf(obj):
+            return 999999.0 if obj > 0 else -999999.0  # Replace Infinity with large number
+        else:
+            return obj
+    else:
+        return obj
 
 
 class D3Formatter:
@@ -263,9 +286,19 @@ class D3Formatter:
                 return obj.isoformat()
             elif isinstance(obj, set):
                 return list(obj)
+            elif isinstance(obj, float):
+                if math.isnan(obj):
+                    return 0.0
+                elif math.isinf(obj):
+                    return 999999.0 if obj > 0 else -999999.0
+                else:
+                    return obj
             elif hasattr(obj, 'item'):  # numpy types
                 return obj.item()
             return obj
+        
+        # Sanitize data
+        complete_data = sanitize_for_json(complete_data)
         
         # Save to file
         with open(output_file, 'w') as f:

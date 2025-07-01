@@ -320,7 +320,21 @@
             const minDegree = +document.getElementById('min-degree').value;
             const filteredNodes = data.nodes.filter(d => (d.degree || 0) >= minDegree);
             const nodeIds = new Set(filteredNodes.map(d => d.id));
-            const filteredLinks = data.links.filter(d => nodeIds.has(d.source) && nodeIds.has(d.target));
+            
+            // Filter links - ensure we get the source/target ids correctly
+            const filteredLinks = data.links.filter(d => {
+                const sourceId = typeof d.source === 'object' ? d.source.id : d.source;
+                const targetId = typeof d.target === 'object' ? d.target.id : d.target;
+                return nodeIds.has(sourceId) && nodeIds.has(targetId);
+            }).map(d => ({
+                // Create fresh link objects to avoid reference issues
+                source: typeof d.source === 'object' ? d.source.id : d.source,
+                target: typeof d.target === 'object' ? d.target.id : d.target,
+                weight: d.weight || 1,
+                interaction_type: d.interaction_type || 'reply'
+            }));
+            
+            console.log(`Filtered nodes: ${filteredNodes.length}, links: ${filteredLinks.length}`);
             
             // Clear previous visualization
             g.selectAll('*').remove();
@@ -329,32 +343,52 @@
             const nodeSizeAttr = document.getElementById('node-size').value;
             const nodeColorAttr = document.getElementById('node-color').value;
             
+            // Ensure we have valid domain for size scale
+            const sizeValues = filteredNodes.map(d => d[nodeSizeAttr] || 0);
+            const sizeDomain = d3.extent(sizeValues);
+            if (sizeDomain[0] === sizeDomain[1]) {
+                sizeDomain[1] = sizeDomain[0] + 1; // Avoid same min/max
+            }
+            
             sizeScale = d3.scaleLinear()
-                .domain(d3.extent(filteredNodes, d => d[nodeSizeAttr] || 0))
-                .range([3, 20]);
+                .domain(sizeDomain)
+                .range([5, 25]);
             
             if (nodeColorAttr === 'community') {
                 colorScale = d3.scaleOrdinal(d3.schemeCategory10);
             } else {
+                const colorValues = filteredNodes.map(d => d[nodeColorAttr] || 0);
+                const colorDomain = d3.extent(colorValues);
+                if (colorDomain[0] === colorDomain[1]) {
+                    colorDomain[1] = colorDomain[0] + 1; // Avoid same min/max
+                }
                 colorScale = d3.scaleSequential(d3.interpolateViridis)
-                    .domain(d3.extent(filteredNodes, d => d[nodeColorAttr] || 0));
+                    .domain(colorDomain);
             }
             
-            // Create force simulation
+            // Stop any existing simulation
+            if (simulation) {
+                simulation.stop();
+            }
+            
+            // Create force simulation with fresh data
             simulation = d3.forceSimulation(filteredNodes)
                 .force('link', d3.forceLink(filteredLinks)
                     .id(d => d.id)
-                    .strength(0.1))
+                    .strength(0.1)
+                    .distance(50))
                 .force('charge', d3.forceManyBody().strength(-100))
                 .force('center', d3.forceCenter(width / 2, height / 2))
                 .force('collision', d3.forceCollide().radius(d => sizeScale(d[nodeSizeAttr] || 0) + 2));
             
-            // Create links
+            // Create links first
             link = g.selectAll('.link')
                 .data(filteredLinks)
                 .enter().append('line')
                 .attr('class', 'link')
-                .attr('stroke-width', d => Math.sqrt(d.weight || 1));
+                .attr('stroke-width', d => Math.sqrt(d.weight || 1))
+                .attr('stroke', '#999')
+                .attr('stroke-opacity', 0.6);
             
             // Create nodes
             node = g.selectAll('.node')
@@ -369,6 +403,9 @@
                         return colorScale(d[nodeColorAttr] || 0);
                     }
                 })
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 1.5)
+                .style('cursor', 'pointer')
                 .on('mouseover', showTooltip)
                 .on('mouseout', hideTooltip)
                 .call(d3.drag()
@@ -376,18 +413,25 @@
                     .on('drag', dragged)
                     .on('end', dragended));
             
-            // Update simulation
+            // Update simulation tick function
             simulation.on('tick', () => {
-                link
-                    .attr('x1', d => d.source.x)
-                    .attr('y1', d => d.source.y)
-                    .attr('x2', d => d.target.x)
-                    .attr('y2', d => d.target.y);
+                if (link) {
+                    link
+                        .attr('x1', d => d.source.x)
+                        .attr('y1', d => d.source.y)
+                        .attr('x2', d => d.target.x)
+                        .attr('y2', d => d.target.y);
+                }
                 
-                node
-                    .attr('cx', d => d.x)
-                    .attr('cy', d => d.y);
+                if (node) {
+                    node
+                        .attr('cx', d => d.x)
+                        .attr('cy', d => d.y);
+                }
             });
+            
+            // Start simulation
+            simulation.alpha(1).restart();
             
             // Update legend
             updateLegend();
@@ -436,8 +480,9 @@
             document.getElementById('node-color').addEventListener('change', createVisualization);
             document.getElementById('min-degree').addEventListener('input', createVisualization);
             document.getElementById('link-strength').addEventListener('input', (e) => {
-                if (simulation) {
-                    simulation.force('link').strength(+e.target.value / 100);
+                if (simulation && simulation.force('link')) {
+                    const strength = +e.target.value / 100;
+                    simulation.force('link').strength(strength);
                     simulation.alpha(0.3).restart();
                 }
             });
