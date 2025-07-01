@@ -3,14 +3,480 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IETF Weavers</title>
+    <title>IETF Weavers - Social Network Visualization</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+        
+        .container {
+            display: flex;
+            height: calc(100vh - 120px);
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: white;
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        .main-content {
+            flex: 1;
+            position: relative;
+        }
+        
+        #graph {
+            width: 100%;
+            height: 100%;
+            background: white;
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .control-group input, .control-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .stats {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .stats h3 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        .node {
+            stroke: #fff;
+            stroke-width: 1.5px;
+            cursor: pointer;
+        }
+        
+        .link {
+            stroke: #999;
+            stroke-opacity: 0.6;
+        }
+        
+        .legend {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+        
+        .legend h4 {
+            margin: 0 0 10px 0;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            margin-right: 8px;
+            border-radius: 50%;
+        }
+    </style>
 </head>
 <body>
-    <h1>IETF Weavers</h1>
-    <div id="graph"></div>
+    <div class="header">
+        <h1>🧠 IETF Weavers</h1>
+        <p>Social and Discursive Dynamics of Internet Standard-making</p>
+    </div>
+    
+    <div class="container">
+        <div class="sidebar">
+            <div class="stats" id="stats">
+                <h3>Network Statistics</h3>
+                <div class="stat-item">
+                    <span>Nodes:</span>
+                    <span id="node-count">-</span>
+                </div>
+                <div class="stat-item">
+                    <span>Links:</span>
+                    <span id="link-count">-</span>
+                </div>
+                <div class="stat-item">
+                    <span>Communities:</span>
+                    <span id="community-count">-</span>
+                </div>
+                <div class="stat-item">
+                    <span>Topics:</span>
+                    <span id="topic-count">-</span>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <div class="control-group">
+                    <label for="node-size">Node Size:</label>
+                    <select id="node-size">
+                        <option value="degree_centrality">Degree Centrality</option>
+                        <option value="betweenness_centrality">Betweenness Centrality</option>
+                        <option value="email_count">Email Count</option>
+                        <option value="topic_entropy">Topic Entropy</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="node-color">Node Color:</label>
+                    <select id="node-color">
+                        <option value="community">Community</option>
+                        <option value="mailing_lists_count">Mailing Lists</option>
+                        <option value="activity_duration_days">Activity Duration</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="link-strength">Link Strength:</label>
+                    <input type="range" id="link-strength" min="0" max="10" value="5">
+                </div>
+                
+                <div class="control-group">
+                    <label for="min-degree">Minimum Degree:</label>
+                    <input type="range" id="min-degree" min="0" max="50" value="1">
+                </div>
+            </div>
+            
+            <div class="legend" id="legend">
+                <h4>Legend</h4>
+                <!-- Legend items will be populated by JavaScript -->
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <svg id="graph"></svg>
+        </div>
+    </div>
+    
+    <div class="tooltip" id="tooltip" style="display: none;"></div>
+    
     <script>
-        // D3.js code will go here
+        // Global variables
+        let data = null;
+        let svg, g, node, link, simulation;
+        let width, height;
+        let colorScale, sizeScale;
+        
+        // Initialize visualization
+        async function init() {
+            try {
+                console.log('Attempting to load data.json...');
+                // Load data
+                const response = await fetch('data.json');
+                console.log('Fetch response:', response);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                data = await response.json();
+                console.log('Data loaded successfully:', data);
+                
+                // Validate data structure
+                if (!data.nodes || !Array.isArray(data.nodes)) {
+                    throw new Error('Invalid data format: missing or invalid nodes array');
+                }
+                
+                if (!data.links || !Array.isArray(data.links)) {
+                    console.warn('Warning: missing or invalid links array, using empty array');
+                    data.links = [];
+                }
+                
+                // Update statistics
+                updateStats();
+                
+                // Setup SVG
+                setupSVG();
+                
+                // Create visualization
+                createVisualization();
+                
+                // Setup controls
+                setupControls();
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                const errorMsg = `
+                    <div style="color: red; padding: 20px;">
+                        <h3>Error loading data</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p><strong>Solutions:</strong></p>
+                        <ul>
+                            <li>Make sure you're accessing via HTTP server (not file://)</li>
+                            <li>Run: <code>python serve_visualization.py</code></li>
+                            <li>Or run: <code>python -m http.server 8000</code> in visualisation/ directory</li>
+                            <li>Check that data.json exists and is valid</li>
+                        </ul>
+                    </div>
+                `;
+                document.getElementById('stats').innerHTML = errorMsg;
+            }
+        }
+        
+        function updateStats() {
+            if (!data) return;
+            
+            document.getElementById('node-count').textContent = data.nodes?.length || 0;
+            document.getElementById('link-count').textContent = data.links?.length || 0;
+            document.getElementById('topic-count').textContent = data.topics?.length || 0;
+            
+            // Count communities
+            const communities = new Set(data.nodes?.map(d => d.community) || []);
+            document.getElementById('community-count').textContent = communities.size;
+        }
+        
+        function setupSVG() {
+            const container = document.querySelector('.main-content');
+            width = container.clientWidth;
+            height = container.clientHeight;
+            
+            svg = d3.select('#graph')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Add zoom behavior
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 10])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                });
+            
+            svg.call(zoom);
+            
+            // Create main group
+            g = svg.append('g');
+        }
+        
+        function createVisualization() {
+            if (!data || !data.nodes) return;
+            
+            // Filter data based on controls
+            const minDegree = +document.getElementById('min-degree').value;
+            const filteredNodes = data.nodes.filter(d => (d.degree || 0) >= minDegree);
+            const nodeIds = new Set(filteredNodes.map(d => d.id));
+            const filteredLinks = data.links.filter(d => nodeIds.has(d.source) && nodeIds.has(d.target));
+            
+            // Clear previous visualization
+            g.selectAll('*').remove();
+            
+            // Create scales
+            const nodeSizeAttr = document.getElementById('node-size').value;
+            const nodeColorAttr = document.getElementById('node-color').value;
+            
+            sizeScale = d3.scaleLinear()
+                .domain(d3.extent(filteredNodes, d => d[nodeSizeAttr] || 0))
+                .range([3, 20]);
+            
+            if (nodeColorAttr === 'community') {
+                colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+            } else {
+                colorScale = d3.scaleSequential(d3.interpolateViridis)
+                    .domain(d3.extent(filteredNodes, d => d[nodeColorAttr] || 0));
+            }
+            
+            // Create force simulation
+            simulation = d3.forceSimulation(filteredNodes)
+                .force('link', d3.forceLink(filteredLinks)
+                    .id(d => d.id)
+                    .strength(0.1))
+                .force('charge', d3.forceManyBody().strength(-100))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collision', d3.forceCollide().radius(d => sizeScale(d[nodeSizeAttr] || 0) + 2));
+            
+            // Create links
+            link = g.selectAll('.link')
+                .data(filteredLinks)
+                .enter().append('line')
+                .attr('class', 'link')
+                .attr('stroke-width', d => Math.sqrt(d.weight || 1));
+            
+            // Create nodes
+            node = g.selectAll('.node')
+                .data(filteredNodes)
+                .enter().append('circle')
+                .attr('class', 'node')
+                .attr('r', d => sizeScale(d[nodeSizeAttr] || 0))
+                .attr('fill', d => {
+                    if (nodeColorAttr === 'community') {
+                        return colorScale(d.community);
+                    } else {
+                        return colorScale(d[nodeColorAttr] || 0);
+                    }
+                })
+                .on('mouseover', showTooltip)
+                .on('mouseout', hideTooltip)
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended));
+            
+            // Update simulation
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+                
+                node
+                    .attr('cx', d => d.x)
+                    .attr('cy', d => d.y);
+            });
+            
+            // Update legend
+            updateLegend();
+        }
+        
+        function showTooltip(event, d) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.style.display = 'block';
+            tooltip.style.left = (event.pageX + 10) + 'px';
+            tooltip.style.top = (event.pageY - 10) + 'px';
+            
+            tooltip.innerHTML = `
+                <strong>${d.name || d.email}</strong><br>
+                Email Count: ${d.email_count || 0}<br>
+                Degree: ${d.degree || 0}<br>
+                Community: ${d.community}<br>
+                Mailing Lists: ${d.mailing_lists_count || 0}<br>
+                Centrality: ${(d.betweenness_centrality || 0).toFixed(3)}
+            `;
+        }
+        
+        function hideTooltip() {
+            document.getElementById('tooltip').style.display = 'none';
+        }
+        
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+        
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+        
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+        
+        function setupControls() {
+            // Add event listeners to controls
+            document.getElementById('node-size').addEventListener('change', createVisualization);
+            document.getElementById('node-color').addEventListener('change', createVisualization);
+            document.getElementById('min-degree').addEventListener('input', createVisualization);
+            document.getElementById('link-strength').addEventListener('input', (e) => {
+                if (simulation) {
+                    simulation.force('link').strength(+e.target.value / 100);
+                    simulation.alpha(0.3).restart();
+                }
+            });
+        }
+        
+        function updateLegend() {
+            const nodeColorAttr = document.getElementById('node-color').value;
+            const legend = document.getElementById('legend');
+            
+            if (nodeColorAttr === 'community' && data.nodes) {
+                const communities = [...new Set(data.nodes.map(d => d.community))].sort();
+                legend.innerHTML = '<h4>Communities</h4>' + 
+                    communities.map(c => 
+                        `<div class="legend-item">
+                            <div class="legend-color" style="background-color: ${colorScale(c)}"></div>
+                            <span>Community ${c}</span>
+                        </div>`
+                    ).join('');
+            } else {
+                legend.innerHTML = '<h4>Legend</h4><p>Color represents ' + nodeColorAttr.replace('_', ' ') + '</p>';
+            }
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', init);
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const container = document.querySelector('.main-content');
+            width = container.clientWidth;
+            height = container.clientHeight;
+            
+            svg.attr('width', width).attr('height', height);
+            
+            if (simulation) {
+                simulation.force('center', d3.forceCenter(width / 2, height / 2));
+                simulation.alpha(0.3).restart();
+            }
+        });
     </script>
 </body>
 </html>

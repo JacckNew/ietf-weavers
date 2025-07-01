@@ -1,0 +1,32 @@
+{
+  "person_000001": [
+    "alice@example.com"
+  ],
+  "person_000002": [
+    "bob@security.org"
+  ],
+  "person_000003": [
+    "carol@university.edu"
+  ],
+  "person_000004": [
+    "dave@tech.com"
+  ],
+  "person_000005": [
+    "eve@startup.io"
+  ],
+  "person_000006": [
+    "frank@telecom.net"
+  ],
+  "person_000007": [
+    "grace@privacy.org"
+  ],
+  "person_000008": [
+    "henry@mobile.com"
+  ],
+  "person_000009": [
+    "iris@quantum.lab"
+  ],
+  "person_000010": [
+    "jack@fintech.bank"
+  ]
+}

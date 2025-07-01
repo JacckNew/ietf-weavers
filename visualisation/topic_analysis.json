@@ -1,0 +1,187 @@
+{
+  "model_info": {
+    "n_topics": 3,
+    "time_window_months": 6,
+    "n_documents": 6,
+    "topic_count": 1
+  },
+  "topics": [],
+  "participants": {
+    "person_000001": {
+      "topic_distribution": {
+        "-1": 1.0
+      },
+      "topic_entropy": -0.0,
+      "name": "",
+      "emails": [
+        "alice@example.com"
+      ],
+      "dominant_topics": [
+        [
+          -1,
+          1.0
+        ]
+      ]
+    },
+    "person_000002": {
+      "topic_distribution": {
+        "-1": 1.0
+      },
+      "topic_entropy": -0.0,
+      "name": "",
+      "emails": [
+        "bob@security.org"
+      ],
+      "dominant_topics": [
+        [
+          -1,
+          1.0
+        ]
+      ]
+    },
+    "person_000003": {
+      "topic_distribution": {
+        "-1": 1.0
+      },
+      "topic_entropy": -0.0,
+      "name": "",
+      "emails": [
+        "carol@university.edu"
+      ],
+      "dominant_topics": [
+        [
+          -1,
+          1.0
+        ]
+      ]
+    },
+    "person_000004": {
+      "topic_distribution": {
+        "-1": 1.0
+      },
+      "topic_entropy": -0.0,
+      "name": "",
+      "emails": [
+        "dave@tech.com"
+      ],
+      "dominant_topics": [
+        [
+          -1,
+          1.0
+        ]
+      ]
+    },
+    "person_000005": {
+      "topic_distribution": {
+        "-1": 1.0
+      },
+      "topic_entropy": -0.0,
+      "name": "",
+      "emails": [
+        "eve@startup.io"
+      ],
+      "dominant_topics": [
+        [
+          -1,
+          1.0
+        ]
+      ]
+    },
+    "person_000006": {
+      "topic_distribution": {
+        "-1": 1.0
+      },
+      "topic_entropy": -0.0,
+      "name": "",
+      "emails": [
+        "frank@telecom.net"
+      ],
+      "dominant_topics": [
+        [
+          -1,
+          1.0
+        ]
+      ]
+    }
+  },
+  "document_assignments": [
+    {
+      "document_id": 0,
+      "topic": -1,
+      "metadata": {
+        "person_id": "person_000001",
+        "time_window": "2024-01",
+        "email_count": 2,
+        "date_range": {
+          "start": "2024-01-15T10:30:00+00:00",
+          "end": "2024-01-25T14:15:00+00:00"
+        }
+      }
+    },
+    {
+      "document_id": 1,
+      "topic": -1,
+      "metadata": {
+        "person_id": "person_000002",
+        "time_window": "2024-01",
+        "email_count": 2,
+        "date_range": {
+          "start": "2024-01-16T14:20:00+00:00",
+          "end": "2024-01-26T11:40:00+00:00"
+        }
+      }
+    },
+    {
+      "document_id": 2,
+      "topic": -1,
+      "metadata": {
+        "person_id": "person_000003",
+        "time_window": "2024-01",
+        "email_count": 2,
+        "date_range": {
+          "start": "2024-01-17T09:15:00+00:00",
+          "end": "2024-01-27T16:25:00+00:00"
+        }
+      }
+    },
+    {
+      "document_id": 3,
+      "topic": -1,
+      "metadata": {
+        "person_id": "person_000004",
+        "time_window": "2024-01",
+        "email_count": 2,
+        "date_range": {
+          "start": "2024-01-18T11:45:00+00:00",
+          "end": "2024-01-28T09:30:00+00:00"
+        }
+      }
+    },
+    {
+      "document_id": 4,
+      "topic": -1,
+      "metadata": {
+        "person_id": "person_000005",
+        "time_window": "2024-01",
+        "email_count": 2,
+        "date_range": {
+          "start": "2024-01-19T16:30:00+00:00",
+          "end": "2024-01-29T13:45:00+00:00"
+        }
+      }
+    },
+    {
+      "document_id": 5,
+      "topic": -1,
+      "metadata": {
+        "person_id": "person_000006",
+        "time_window": "2024-01",
+        "email_count": 2,
+        "date_range": {
+          "start": "2024-01-20T13:10:00+00:00",
+          "end": "2024-01-30T10:20:00+00:00"
+        }
+      }
+    }
+  ]
+}

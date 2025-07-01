@@ -2,3 +2,7 @@ networkx
 pandas
 bertopic
 scikit-learn
+numpy
+sentence-transformers
+python-louvain
+email-validator
