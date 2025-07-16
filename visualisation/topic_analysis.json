@@ -1,6 +1,6 @@
 {
   "model_info": {
-    "n_topics": 3,
+    "n_topics": 50,
     "time_window_months": 6,
     "n_documents": 6,
     "topic_count": 1

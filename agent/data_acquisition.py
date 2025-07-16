@@ -23,7 +23,6 @@ from email.headerregistry import Address
 
 try:
     from ietfdata.datatracker import DataTracker
-    from ietfdata.dtbackend import DTBackendLive, DTBackendArchive
     from ietfdata.mailarchive3 import MailArchive
     IETFDATA_AVAILABLE = True
 except ImportError:
@@ -74,10 +73,12 @@ class IETFDataAcquisition:
         try:
             if self.use_cache:
                 self.logger.info(f"Initializing DataTracker with cache: {self.cache_file}")
-                self.datatracker = DataTracker(DTBackendArchive(sqlite_file=self.cache_file))
+                # Use cache directory approach for new API
+                cache_dir = os.path.dirname(self.cache_file) if self.cache_file else '.'
+                self.datatracker = DataTracker(cache_dir=cache_dir)
             else:
                 self.logger.info("Initializing DataTracker with live backend")
-                self.datatracker = DataTracker(DTBackendLive())
+                self.datatracker = DataTracker(cache_dir=None)
         except Exception as e:
             self.logger.error(f"Failed to initialize DataTracker: {e}")
             self.datatracker = None

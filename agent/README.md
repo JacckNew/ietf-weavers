@@ -1,6 +1,6 @@
 # IETF Weavers Agent
 
-This directory contains the backend logic for the IETF Weavers project - an AI-driven processing engine for analyzing social and discursive dynamics in IETF email communications.
+This directory contains the backend logic for the IETF Weavers project - a processing engine for analyzing social and discursive dynamics in IETF email communications.
 
 ## Architecture
 

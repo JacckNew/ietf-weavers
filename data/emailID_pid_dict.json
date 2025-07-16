@@ -1,8 +1,0 @@
-{
-  "alice@example.com": "person_000001",
-  "bob@example.org": "person_000002",
-  "carol@university.edu": "person_000003",
-  "dave@company.com": "person_000004",
-  "eve@isp.net": "person_000005",
-  "frank@router-vendor.com": "person_000006"
-}
