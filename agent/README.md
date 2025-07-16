@@ -1,12 +1,24 @@
 # IETF Weavers Agent
 
-This directory contains the backend logic for the IETF Weavers project - a processing engine for analyzing social and discursive dynamics in IETF email communications.
+This directory contains the core data processing modules for the IETF Weavers project - a comprehensive engine for analyzing social and discursive dynamics in IETF email communications.
 
 ## Architecture
 
 The agent follows a modular design with specialized components for each phase of the analysis pipeline:
 
 ### Core Modules
+
+#### `data_acquisition.py` - IETF Data Fetching
+- **IETFDataAcquisition**: Core class for fetching real IETF data using glasgow-ipl/ietfdata
+- **MailArchive Integration**: Direct access to IETF mailing list archives
+- **DataTracker Integration**: Person metadata from IETF Datatracker
+- **Caching System**: SQLite-based caching for efficient data retrieval
+
+Key Features:
+- Real-time IETF mailing list data acquisition
+- Person metadata enrichment from IETF Datatracker
+- Local SQLite caching for offline analysis
+- Data normalization for pipeline compatibility
 
 #### `utils.py` - Email parsing, NER, and cleaning
 - **EmailParser**: Normalizes email addresses and classifies email types (automated, role-based, individual)

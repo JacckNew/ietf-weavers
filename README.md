@@ -61,17 +61,17 @@ IETF Weavers combines social network analysis (SNA) and natural language process
 1. **List available mailing lists**
 
    ```bash
-   python fetch_ietf_data.py --list-available
+   python scripts/fetch_ietf_data.py --list-available
    ```
 
 2. **Fetch data from specific mailing lists**
 
    ```bash
    # Fetch recent data from popular lists
-   python fetch_ietf_data.py --lists ietf cfrg --output data/ietf_recent.json
+   python scripts/fetch_ietf_data.py --lists ietf cfrg --output data/ietf_recent.json
 
    # Fetch with specific date range
-   python fetch_ietf_data.py --lists ietf --start-date 2024-01-01T00:00:00 --max-messages 1000
+   python scripts/fetch_ietf_data.py --lists ietf --start-date 2024-01-01T00:00:00 --max-messages 1000
    ```
 
 3. **Run analysis pipeline**
@@ -82,7 +82,11 @@ IETF Weavers combines social network analysis (SNA) and natural language process
 
 4. **View results**
 
-   Open `visualisation/index.html` in your web browser
+   ```bash
+   python scripts/serve_visualization.py
+   ```
+   
+   Then open <http://localhost:8000> in your browser, or directly open `visualisation/index.html`
 
 #### Option 2: Use Sample Data
 
@@ -94,7 +98,11 @@ IETF Weavers combines social network analysis (SNA) and natural language process
 
 2. **View results**
 
-   Open `visualisation/index.html` in your web browser
+   ```bash
+   python scripts/serve_visualization.py
+   ```
+   
+   Then open <http://localhost:8000> in your browser, or directly open `visualisation/index.html`
 
 #### Option 3: Integrated Workflow
 
@@ -112,35 +120,42 @@ python src/main.py --list-available
 
 ```text
 ietf-weavers/
-├── agent/                      # Backend logic (AI-driven processing engine)
+├── agent/                      # Core data processing modules
+│   ├── data_acquisition.py     # IETF data fetching using ietfdata library
+│   ├── formatter.py            # Outputs D3.js-ready JSON files
 │   ├── graph_builder.py        # Builds sender–replier social graph
 │   ├── metrics.py              # Calculates centrality and network features
 │   ├── topic_model.py          # Runs BERTopic to extract discussion themes
-│   ├── formatter.py            # Outputs D3.js-ready JSON files
-│   ├── utils.py                # Email parsing, NER, cleaning
-│   ├── data_acquisition.py     # IETF data fetching using ietfdata library
-│   └── README.md               # Agent responsibilities & usage
+│   ├── utils.py                # Email parsing, NER, cleaning utilities
+│   ├── __init__.py             # Package initialization
+│   └── README.md               # Agent module documentation
 │
-├── src/                        # Main pipeline script
-│   └── main.py                 # Orchestrates graph + NLP + export
+├── cache/                      # Cache files (SQLite, temporary data)
+│   └── ietfdata.sqlite         # IETF data cache (auto-created)
 │
-├── fetch_ietf_data.py          # Standalone IETF data acquisition script
+├── data/                       # Raw and processed data directory
+│   └── (empty - ready for real IETF data)
 │
-├── data/                       # Raw and processed IETF data
-│   ├── sample_emails.json      # Example email data
-│   └── ietfdata.sqlite         # Cache for IETF data (auto-created)
+├── scripts/                    # Standalone utility scripts
+│   ├── fetch_ietf_data.py      # Command-line IETF data acquisition
+│   └── serve_visualization.py  # Local web server for visualization
 │
-├── notebooks/                  # Prototyping, EDA, and manual validation
+├── src/                        # Main pipeline orchestration
+│   └── main.py                 # End-to-end workflow coordinator
 │
-├── visualisation/              # D3.js frontend prototype
-│   ├── index.html              # Interactive force-directed graph UI
-│   └── data.json               # Graph + topic data rendered by D3
+├── visualisation/              # Interactive web visualization
+│   ├── index.html              # D3.js force-directed graph interface
+│   ├── data.json               # Network graph data for visualization
+│   ├── individual_features.csv # Participant feature export
+│   └── topic_analysis.json     # Topic modeling results
 │
-├── docs/                       # Documentation or academic figures
+├── venv/                       # Python virtual environment
 │
-├── requirements.txt            # Python environment setup
-├── LICENSE                     # MIT License (for software only)
-└── README.md                   # This file
+├── requirements.txt            # Python dependencies
+├── LICENSE                     # MIT License
+├── README.md                   # This file
+├── systemdesign.png            # System architecture diagram
+└── *.md                        # Additional documentation files
 ```
 
 ## 🔧 Core Features
@@ -148,7 +163,7 @@ ietf-weavers/
 ### Data Processing Pipeline
 
 1. **Data Collection & Cleaning**
-   - Load IETF mailing list archives (JSON, CSV, directories)
+   - Fetch IETF mailing list data using glasgow-ipl/ietfdata library
    - Parse email headers and normalize identities
    - Filter automated vs. individual emails
    - Build comprehensive person-email mappings
@@ -463,24 +478,20 @@ The IETF Weavers project is now fully operational with all core features impleme
 - **🛡️ Error Handling**: Graceful degradation when dependencies are missing
 - **🧪 Testing**: Basic functionality verification and sample data validation
 
-### 📊 Sample Results
+### � Ready for Production
 
-Using the expanded sample dataset (`data/expanded_sample_emails.json`):
-- **Network Size**: 10 participants, 5 interaction edges
-- **Community Detection**: 5 communities identified
-- **Topic Modeling**: 1 main discussion topic discovered
-- **Processing Time**: ~5 seconds end-to-end
-- **Output Files**: All visualization files generated successfully
-
-### 🚀 Ready for Production
+The project is now ready for real IETF data processing:
 
 ```bash
-# Run with sample data
-python src/main.py data/expanded_sample_emails.json --n-topics 5
+# Fetch real IETF data
+python scripts/fetch_ietf_data.py --lists ietf cfrg --output data/ietf_recent.json
 
-# View interactive visualization
-open visualisation/index.html
+# Run analysis pipeline
+python src/main.py data/ietf_recent.json --n-topics 10
+
+# Start visualization server
+python scripts/serve_visualization.py
 ```
 
-**Next Steps**: Ready for real IETF mailing list data integration!
+**Next Steps**: The system is production-ready for large-scale IETF data analysis!
 
