@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IETF Weavers - Debug Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        
+        #graph {
+            background: white;
+            border: 2px solid #ccc;
+        }
+        
+        .node {
+            fill: steelblue;
+            stroke: #333;
+            stroke-width: 2px;
+        }
+        
+        .link {
+            stroke: #999;
+            stroke-width: 2px;
+            stroke-opacity: 0.6;
+        }
+        
+        .debug-info {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: white;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>IETF Weavers - Debug Mode</h1>
+    
+    <div class="debug-info">
+        <h3>Debug Information</h3>
+        <div id="debug-log"></div>
+    </div>
+    
+    <svg id="graph" width="800" height="600"></svg>
+
+    <script>
+        function log(message) {
+            console.log(message);
+            const debugLog = document.getElementById('debug-log');
+            debugLog.innerHTML += '<p>' + message + '</p>';
+        }
+        
+        async function init() {
+            log('Starting debug visualization...');
+            
+            try {
+                // Load data
+                log('Loading data.json...');
+                const response = await fetch('data.json');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                log(`Data loaded: ${data.nodes?.length || 0} nodes, ${data.links?.length || 0} links`);
+                
+                if (!data.nodes || data.nodes.length === 0) {
+                    log('ERROR: No nodes in data!');
+                    return;
+                }
+                
+                // Show sample data
+                log('Sample node: ' + JSON.stringify(data.nodes[0]));
+                if (data.links && data.links.length > 0) {
+                    log('Sample link: ' + JSON.stringify(data.links[0]));
+                } else {
+                    log('No links found in data');
+                }
+                
+                // Create simple visualization
+                createSimpleViz(data);
+                
+            } catch (error) {
+                log('ERROR loading data: ' + error.message);
+            }
+        }
+        
+        function createSimpleViz(data) {
+            log('Creating visualization...');
+            
+            const svg = d3.select('#graph');
+            const width = 800;
+            const height = 600;
+            
+            // Clear any existing content
+            svg.selectAll('*').remove();
+            
+            // Filter nodes with minimum email count
+            const nodes = data.nodes.filter(d => (d.email_count || 0) >= 3);
+            const links = data.links || [];
+            
+            log(`Using ${nodes.length} nodes and ${links.length} links`);
+            
+            if (nodes.length === 0) {
+                log('ERROR: No nodes after filtering!');
+                return;
+            }
+            
+            // Create force simulation
+            const simulation = d3.forceSimulation(nodes)
+                .force('link', d3.forceLink(links)
+                    .id(d => d.id)
+                    .distance(80)
+                    .strength(0.1))
+                .force('charge', d3.forceManyBody().strength(-200))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collision', d3.forceCollide().radius(15));
+            
+            // Create links (if any)
+            const link = svg.selectAll('.link')
+                .data(links)
+                .enter()
+                .append('line')
+                .attr('class', 'link');
+            
+            // Create nodes  
+            const node = svg.selectAll('.node')
+                .data(nodes)
+                .enter()
+                .append('circle')
+                .attr('class', 'node')
+                .attr('r', d => Math.max(5, Math.sqrt((d.email_count || 1) * 2)))
+                .style('fill', d => d3.schemeCategory10[d.community % 10])
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended));
+            
+            // Add labels for debugging
+            const labels = svg.selectAll('.label')
+                .data(nodes.slice(0, 10)) // Only show first 10 labels
+                .enter()
+                .append('text')
+                .text(d => d.id)
+                .style('font-size', '10px')
+                .style('fill', 'black');
+            
+            // Update positions on tick
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+                    
+                node
+                    .attr('cx', d => d.x)
+                    .attr('cy', d => d.y);
+                    
+                labels
+                    .attr('x', d => d.x + 10)
+                    .attr('y', d => d.y + 5);
+            });
+            
+            // Add click handlers
+            node.on('click', function(event, d) {
+                log(`Clicked node: ${d.id}, emails: ${d.email_count}, community: ${d.community}`);
+            });
+            
+            log('Visualization created! Nodes should be visible now.');
+            
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+            
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+            
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+        }
+        
+        // Start when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

@@ -318,7 +318,18 @@
             
             // Filter data based on controls
             const minDegree = +document.getElementById('min-degree').value;
-            const filteredNodes = data.nodes.filter(d => (d.degree || 0) >= minDegree);
+            
+            // Fix: use degree_centrality instead of degree, and make filtering more permissive
+            let filteredNodes = data.nodes.filter(d => (d.degree_centrality || 0) >= minDegree / 1000);
+            
+            // If filtering results in too few nodes, use most active participants
+            if (filteredNodes.length < 20) {
+                console.log('Too few nodes after filtering, using top participants by email count');
+                filteredNodes = data.nodes
+                    .sort((a, b) => (b.email_count || 0) - (a.email_count || 0))
+                    .slice(0, Math.min(100, data.nodes.length));
+            }
+            
             const nodeIds = new Set(filteredNodes.map(d => d.id));
             
             // Filter links - ensure we get the source/target ids correctly
@@ -350,9 +361,10 @@
                 sizeDomain[1] = sizeDomain[0] + 1; // Avoid same min/max
             }
             
+            // Ensure minimum node size is visible
             sizeScale = d3.scaleLinear()
                 .domain(sizeDomain)
-                .range([5, 25]);
+                .range([8, 25]);  // Increased minimum size from 5 to 8
             
             if (nodeColorAttr === 'community') {
                 colorScale = d3.scaleOrdinal(d3.schemeCategory10);
