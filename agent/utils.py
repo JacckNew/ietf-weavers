@@ -246,6 +246,11 @@ class ThreadAnalyzer:
         # Find reply relationships
         for msg_id, msg_data in self.messages.items():
             reply_to = msg_data['in_reply_to']
+            
+            # Handle both string and list formats for in_reply_to
+            if isinstance(reply_to, list):
+                reply_to = reply_to[0] if reply_to else None
+            
             if reply_to and reply_to in self.messages:
                 self.messages[reply_to]['replies'].append(msg_id)
         
@@ -253,6 +258,11 @@ class ThreadAnalyzer:
         thread_roots = []
         for msg_id, msg_data in self.messages.items():
             reply_to = msg_data['in_reply_to']
+            
+            # Handle both string and list formats for in_reply_to
+            if isinstance(reply_to, list):
+                reply_to = reply_to[0] if reply_to else None
+                
             if not reply_to or reply_to not in self.messages:
                 thread_roots.append(msg_id)
         

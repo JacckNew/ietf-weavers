@@ -116,7 +116,86 @@ python src/main.py --fetch-ietf --mailing-lists ietf cfrg --max-messages 500
 python src/main.py --list-available
 ```
 
-## 📁 Repository Structure
+## � Current Data Status
+
+### ✅ Downloaded IETF Data (Complete)
+
+The repository now contains comprehensive IETF mailing list data across three tiers:
+
+#### **Tier 1 - Core Technical Lists** (10 lists, 345,525 messages)
+
+- `cfrg` - Crypto Research Group (14,249 messages)
+- `quic` - QUIC Protocol (11,711 messages)
+- `tls` - TLS Security (37,056 messages)
+- `oauth` - OAuth Authentication (26,623 messages)
+- `dnsop` - DNS Operations (35,492 messages)
+- `v6ops` - IPv6 Operations (78,645 messages)
+- `rtgwg` - Routing Working Group (15,499 messages)
+- `tsvwg` - Transport Services (51,248 messages)
+- `saag` - Security Area Advisory Group (17,134 messages)
+- `netmod` - Network Modeling (57,868 messages)
+
+#### **Tier 2 - Extended Technical Lists** (10 lists, 120,664 messages)
+
+- `netconf` - Network Configuration (20,344 messages)
+- `opsawg` - Operations & Management (13,255 messages)
+- `anima` - Autonomic Networking (7,935 messages)
+- `spring` - Source Packet Routing (12,345 messages)
+- `ace` - Authentication & Authorization (5,934 messages)
+- `http` - HTTP (1 message)
+- `httpapi` - HTTP API (1,506 messages)
+- `mmusic` - Multiparty Multimedia (23,880 messages)
+- `iptel` - IP Telephony (1,241 messages)
+- `sip` - Session Initiation Protocol (34,223 messages)
+
+#### **Tier 3 - Specialized Technical Lists** (10 lists, 135,450 messages)
+
+- `asrg` - Anti-Spam Research Group (34,658 messages)
+- `bmwg` - Benchmarking Working Group (5,881 messages)
+- `dhcwg` - DHCP Working Group (56,637 messages)
+- `hiprg` - Host Identity Protocol RG (1,663 messages)
+- `iccrg` - Congestion Control RG (3,716 messages)
+- `icnrg` - Information-Centric Networking RG (4,029 messages)
+- `isis-wg` - ISIS Working Group (13,433 messages)
+- `krb-wg` - Kerberos Working Group (14,257 messages)
+- `nfvrg` - Network Function Virtualization RG (972 messages)
+- `tewg` - Traffic Engineering WG (204 messages)
+
+### 💾 **Data Storage**
+
+- **Total Messages**: 601,639 across 30 mailing lists
+- **Cache Database**: 9.02GB SQLite file (`cache/ietfdata.sqlite`)
+- **Exported JSON**: 2.73GB across 3 tier files (`data/` directory)
+- **Coverage Period**: 1992-2025 (complete historical archive)
+
+### 📁 **Cache Files Explained**
+
+- **`cache/ietfdata.sqlite`** (9.02GB): MailArchive3 email data cache containing all downloaded message content, headers, and metadata
+- **`cache/ietf-dt-cache.sqlite`** (24KB): DataTracker metadata cache with working group information, RFC data, and organizational structure
+
+### 🚀 **Batch Download Tool**
+
+For downloading additional data or replicating the dataset:
+
+```bash
+# Download specific tiers
+python batch_download.py --tier 1    # Core lists
+python batch_download.py --tier 2    # Extended lists  
+python batch_download.py --tier 3    # Specialized lists
+
+# Download all tiers at once
+python batch_download.py --all
+
+# Download custom selection
+python batch_download.py --custom cfrg quic tls
+
+# List all available mailing lists
+python batch_download.py --list-available
+```
+
+**Note**: The data is already downloaded and ready for analysis! 🎉
+
+## �📁 Repository Structure
 
 ```text
 ietf-weavers/
@@ -131,14 +210,19 @@ ietf-weavers/
 │   └── README.md               # Agent module documentation
 │
 ├── cache/                      # Cache files (SQLite, temporary data)
-│   └── ietfdata.sqlite         # IETF data cache (auto-created)
+│   ├── ietfdata.sqlite         # IETF mail data cache (9.02GB) - COMPLETE
+│   └── ietf-dt-cache.sqlite    # DataTracker metadata cache (24KB)
 │
-├── data/                       # Raw and processed data directory
-│   └── (empty - ready for real IETF data)
+├── data/                       # Downloaded IETF data (2.73GB total)
+│   ├── ietf_batch_tier1_core_technical_lists_20250717_132702.json      # Tier 1 (1.57GB)
+│   ├── ietf_batch_tier2_extended_technical_lists_20250717_132710.json  # Tier 2 (596MB)  
+│   ├── ietf_batch_tier3_specialized_technical_lists_20250718_184653.json # Tier 3 (564MB)
+│   └── ietf_large_sample.json  # Sample data for testing
 │
 ├── scripts/                    # Standalone utility scripts
 │   ├── fetch_ietf_data.py      # Command-line IETF data acquisition
-│   └── serve_visualization.py  # Local web server for visualization
+│   ├── serve_visualization.py  # Local web server for visualization
+│   └── README.md               # Scripts documentation
 │
 ├── src/                        # Main pipeline orchestration
 │   └── main.py                 # End-to-end workflow coordinator
@@ -151,10 +235,15 @@ ietf-weavers/
 │
 ├── venv/                       # Python virtual environment
 │
+├── batch_download.py           # Multi-tier IETF data downloader
+├── batch_download.log          # Download process logs
 ├── requirements.txt            # Python dependencies
 ├── LICENSE                     # MIT License
 ├── README.md                   # This file
 ├── systemdesign.png            # System architecture diagram
+├── instruction.md              # Project instructions
+├── PROJECT_COMPLETION.md       # Project completion status
+├── IETF_INTEGRATION_SUMMARY.md # Integration summary
 └── *.md                        # Additional documentation files
 ```
 

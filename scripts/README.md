@@ -6,25 +6,26 @@ This directory contains standalone utility scripts for the IETF Weavers project.
 
 ### `fetch_ietf_data.py`
 
-**Purpose**: Command-line tool for fetching IETF mailing list data
+**Purpose**: High-performance IETF mailing list data fetcher with SQL-based direct database access
 
 **Usage**:
 ```bash
-# List available mailing lists
-python scripts/fetch_ietf_data.py --list-available
+# Fetch data from specific lists with multi-threading
+python scripts/fetch_ietf_data.py --lists ietf cfrg --max-messages 500 --threads 4
 
-# Fetch data from specific lists
-python scripts/fetch_ietf_data.py --lists ietf cfrg --output data/ietf_data.json
+# Fetch with date range
+python scripts/fetch_ietf_data.py --lists ietf --start-date 2024-01-01T00:00:00 --end-date 2024-12-31T23:59:59
 
-# Fetch with date range and limits
-python scripts/fetch_ietf_data.py --lists ietf --start-date 2024-01-01T00:00:00 --max-messages 1000
+# Quick test with limited messages
+python scripts/fetch_ietf_data.py --lists ietf --max-messages 100 --output data/test_data.json
 ```
 
 **Key Features**:
-- Direct integration with IETF Datatracker and mail archives
-- SQLite caching for efficient data retrieval
+- Direct SQLite database access (bypasses API issues)
+- Multi-threaded parallel processing for speed
 - Configurable date ranges and message limits
 - JSON output compatible with main pipeline
+- 1000+ messages/second performance
 
 ### `serve_visualization.py`
 

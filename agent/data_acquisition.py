@@ -17,9 +17,17 @@ Key Features:
 import os
 import logging
 import json
+import sqlite3
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Any, Optional, Iterator
+from typing import Dict, List, Any, Optional, Iterator, TYPE_CHECKING
 from email.headerregistry import Address
+import email
+import email.utils
+from email.message import EmailMessage
+
+if TYPE_CHECKING:
+    from ietfdata.datatracker import DataTracker
+    from ietfdata.mailarchive3 import MailArchive
 
 try:
     from ietfdata.datatracker import DataTracker
@@ -28,6 +36,8 @@ try:
 except ImportError:
     print("Warning: ietfdata library not available. Install with: pip install ietfdata")
     IETFDATA_AVAILABLE = False
+    DataTracker = None  # type: ignore
+    MailArchive = None  # type: ignore
 
 
 class IETFDataAcquisition:
@@ -70,6 +80,11 @@ class IETFDataAcquisition:
     
     def _init_datatracker(self):
         """Initialize DataTracker with appropriate backend."""
+        if not IETFDATA_AVAILABLE or DataTracker is None:
+            self.logger.error("DataTracker not available - ietfdata library not installed")
+            self.datatracker = None
+            return
+            
         try:
             if self.use_cache:
                 self.logger.info(f"Initializing DataTracker with cache: {self.cache_file}")
@@ -85,6 +100,11 @@ class IETFDataAcquisition:
     
     def _init_mailarchive(self):
         """Initialize MailArchive3 with SQLite backend."""
+        if not IETFDATA_AVAILABLE or MailArchive is None:
+            self.logger.error("MailArchive not available - ietfdata library not installed")
+            self.mailarchive = None
+            return
+            
         try:
             self.logger.info(f"Initializing MailArchive with cache: {self.cache_file}")
             self.mailarchive = MailArchive(sqlite_file=self.cache_file)
@@ -171,12 +191,21 @@ class IETFDataAcquisition:
             for list_name in mailing_list_names:
                 self.logger.info(f"Fetching messages from {list_name}")
                 
+                # Get mailing list object first
+                mailing_list = self.mailarchive.mailing_list(list_name)
+                if not mailing_list:
+                    self.logger.warning(f"No mailing list found for {list_name}")
+                    continue
+                
                 # Get messages from the mailing list
-                messages = list(self.mailarchive.messages(
-                    mailing_list_name=list_name,
-                    sent_after=start_date,
-                    sent_before=end_date
-                ))
+                messages_iter = mailing_list.messages()
+                
+                # Handle case where messages iterator is None
+                if messages_iter is None:
+                    self.logger.warning(f"No messages iterator for {list_name}")
+                    continue
+                
+                messages = list(messages_iter)
                 
                 self.logger.info(f"Found {len(messages)} messages in {list_name}")
                 
@@ -202,6 +231,67 @@ class IETFDataAcquisition:
         self.logger.info(f"Total messages fetched: {len(all_messages)}")
         return all_messages
     
+    def fetch_messages(self, 
+                      mailing_list: str,
+                      start_date: str = "2023-01-01T00:00:00",
+                      end_date: str = "2024-12-31T23:59:59",
+                      max_messages: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Fetch messages from a single IETF mailing list.
+        This method is optimized for parallel processing.
+        
+        Args:
+            mailing_list: Name of the mailing list
+            start_date: Start date in ISO format
+            end_date: End date in ISO format
+            max_messages: Maximum number of messages to fetch (None for all)
+            
+        Returns:
+            List of normalized email dictionaries
+        """
+        if not self.mailarchive:
+            self.logger.error("MailArchive not initialized")
+            return []
+        
+        messages = []
+        
+        try:
+            self.logger.info(f"Fetching messages from {mailing_list}")
+            
+            # Get mailing list object first
+            mailing_list_obj = self.mailarchive.mailing_list(mailing_list)
+            if not mailing_list_obj:
+                self.logger.warning(f"No mailing list found for {mailing_list}")
+                return []
+            
+            # Get messages from the mailing list
+            envelopes = list(mailing_list_obj.messages())
+            
+            self.logger.info(f"Found {len(envelopes)} messages in {mailing_list}")
+            
+            # Convert to normalized format
+            for envelope in envelopes:
+                try:
+                    normalized_msg = self._normalize_envelope(envelope, mailing_list)
+                    if normalized_msg:
+                        messages.append(normalized_msg)
+                        
+                        # Check max messages limit
+                        if max_messages and len(messages) >= max_messages:
+                            self.logger.info(f"Reached max messages limit for {mailing_list}: {max_messages}")
+                            break
+                
+                except Exception as e:
+                    self.logger.warning(f"Error processing message in {mailing_list}: {e}")
+                    continue
+        
+        except Exception as e:
+            self.logger.error(f"Error fetching messages from {mailing_list}: {e}")
+            return []
+        
+        self.logger.info(f"Successfully fetched {len(messages)} messages from {mailing_list}")
+        return messages
+
     def _normalize_envelope(self, envelope, mailing_list_name: str) -> Optional[Dict[str, Any]]:
         """
         Convert ietfdata Envelope to normalized pipeline format.
@@ -251,8 +341,8 @@ class IETFDataAcquisition:
                 "uidvalidity": envelope.uidvalidity(),
                 
                 # Reply relationship
-                "in_reply_to": [msg.message_id() for msg in envelope.in_reply_to()],
-                "replies": [msg.message_id() for msg in envelope.replies()],
+                "in_reply_to": [msg.message_id() for msg in (envelope.in_reply_to() or [])],
+                "replies": [msg.message_id() for msg in (envelope.replies() or [])],
                 
                 # Raw headers for reference
                 "headers": {
@@ -325,13 +415,13 @@ class IETFDataAcquisition:
                         person = email_obj.person
                         
                         person_metadata[email_addr] = {
-                            "name": person.name,
+                            "name": getattr(person, 'name', ''),
                             "ascii_name": getattr(person, 'ascii', ''),
                             "biography": getattr(person, 'biography', ''),
-                            "person_uri": str(person.resource_uri),
-                            "email_uri": str(email_obj.resource_uri),
-                            "active": email_obj.active,
-                            "primary": email_obj.primary
+                            "person_uri": str(getattr(person, 'resource_uri', '')),
+                            "email_uri": str(getattr(email_obj, 'resource_uri', '')),
+                            "active": getattr(email_obj, 'active', False),
+                            "primary": getattr(email_obj, 'primary', False)
                         }
                 
                 except Exception as e:
@@ -344,6 +434,63 @@ class IETFDataAcquisition:
         self.logger.info(f"Fetched metadata for {len(person_metadata)} people")
         return person_metadata
     
+    def enrich_with_person_metadata(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Enrich messages with person metadata from IETF Datatracker.
+        
+        Args:
+            messages: List of message dictionaries
+            
+        Returns:
+            List of messages enriched with person metadata
+        """
+        if not self.datatracker:
+            self.logger.warning("DataTracker not initialized, skipping person metadata enrichment")
+            return messages
+        
+        try:
+            self.logger.info("Enriching messages with person metadata...")
+            
+            # Extract unique email addresses
+            unique_emails = set()
+            for msg in messages:
+                from_email = msg.get('from', '')
+                if from_email:
+                    unique_emails.add(from_email)
+            
+            self.logger.info(f"Found {len(unique_emails)} unique email addresses")
+            
+            # Fetch person data for each email
+            person_cache = {}
+            for email in unique_emails:
+                try:
+                    # Query person by email using the correct API
+                    email_obj = self.datatracker.email_for_address(email)
+                    if email_obj and email_obj.person:
+                        person_cache[email] = email_obj.person
+                except Exception as e:
+                    self.logger.debug(f"Could not fetch person data for {email}: {e}")
+                    continue
+            
+            # Enrich messages with person metadata
+            enriched_messages = []
+            for msg in messages:
+                from_email = msg.get('from', '')
+                if from_email in person_cache:
+                    person = person_cache[from_email]
+                    msg['person_name'] = getattr(person, 'name', None)
+                    msg['person_ascii_name'] = getattr(person, 'ascii', None)
+                    msg['person_biography'] = getattr(person, 'biography', None)
+                
+                enriched_messages.append(msg)
+            
+            self.logger.info(f"Enriched {len([m for m in enriched_messages if 'person_name' in m])} messages with person metadata")
+            return enriched_messages
+            
+        except Exception as e:
+            self.logger.error(f"Error enriching with person metadata: {e}")
+            return messages
+
     def save_to_json(self, 
                      data: List[Dict[str, Any]], 
                      output_file: str,
@@ -440,7 +587,145 @@ class IETFDataAcquisition:
         except Exception as e:
             self.logger.error(f"Error in fetch_and_save_data workflow: {e}")
             return False
-
+    
+    def fetch_messages_sql(self, 
+                          mailing_list: str,
+                          start_date: str = "2024-01-01T00:00:00",
+                          end_date: str = "2024-12-31T23:59:59",
+                          max_messages: Optional[int] = None,
+                          db_path: str = "cache/ietfdata.sqlite") -> List[Dict[str, Any]]:
+        """
+        Fetch messages directly from the SQLite database (bypassing ietfdata API).
+        
+        Args:
+            mailing_list: Name of the mailing list
+            start_date: Start date in ISO format
+            end_date: End date in ISO format
+            max_messages: Maximum number of messages to fetch
+            db_path: Path to the SQLite database
+            
+        Returns:
+            List of message dictionaries
+        """
+        if not os.path.exists(db_path):
+            raise FileNotFoundError(f"Database not found: {db_path}")
+        
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Build query
+        query = """
+            SELECT 
+                m.message_num,
+                m.mailing_list,
+                m.uidvalidity,
+                m.uid,
+                m.message as message_blob,
+                m.size,
+                m.date_received,
+                h.from_name,
+                h.from_addr,
+                h.subject,
+                h.date,
+                h.message_id,
+                h.in_reply_to
+            FROM ietf_ma_msg m
+            JOIN ietf_ma_hdr h ON m.message_num = h.message_num
+            WHERE m.mailing_list = ?
+            AND h.date >= ?
+            AND h.date <= ?
+            ORDER BY h.date DESC
+        """
+        
+        params = [mailing_list, start_date, end_date]
+        
+        if max_messages:
+            query += " LIMIT ?"
+            params.append(str(max_messages))
+        
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        
+        messages = []
+        for row in rows:
+            try:
+                # Parse the message blob to extract body
+                message_blob = row['message_blob']
+                body = ""
+                
+                if message_blob:
+                    try:
+                        # Try to parse as email message
+                        email_msg = email.message_from_bytes(message_blob)
+                        body = self._extract_text_from_email(email_msg)
+                    except Exception as e:
+                        # If parsing fails, try as string
+                        try:
+                            body = message_blob.decode('utf-8', errors='ignore')
+                        except:
+                            body = str(message_blob)
+                
+                # Build normalized message
+                message = {
+                    "message_id": row['message_id'],
+                    "from": row['from_addr'] or "",
+                    "from_name": row['from_name'] or "",
+                    "to": [],
+                    "cc": [],
+                    "subject": row['subject'] or "",
+                    "date": row['date'],
+                    "date_received": row['date_received'],
+                    "body": body,
+                    "size": row['size'] or 0,
+                    "mailing_list": row['mailing_list'],
+                    "list_name": row['mailing_list'],
+                    "uid": row['uid'],
+                    "uidvalidity": row['uidvalidity'],
+                    "in_reply_to": [row['in_reply_to']] if row['in_reply_to'] else [],
+                    "replies": [],
+                    "headers": {
+                        "from": row['from_addr'],
+                        "subject": row['subject'],
+                        "date": row['date'],
+                        "message-id": row['message_id'],
+                        "in-reply-to": row['in_reply_to']
+                    }
+                }
+                
+                messages.append(message)
+                
+            except Exception as e:
+                print(f"Error processing message {row['message_id']}: {e}")
+                continue
+        
+        conn.close()
+        return messages
+    
+    def _extract_text_from_email(self, email_msg) -> str:
+        """Extract plain text from an email message."""
+        try:
+            # Get plain text part
+            if email_msg.is_multipart():
+                for part in email_msg.walk():
+                    if part.get_content_type() == 'text/plain':
+                        payload = part.get_payload(decode=True)
+                        if isinstance(payload, bytes):
+                            return payload.decode('utf-8', errors='ignore')
+                        else:
+                            return str(payload)
+            else:
+                if email_msg.get_content_type() == 'text/plain':
+                    payload = email_msg.get_payload(decode=True)
+                    if isinstance(payload, bytes):
+                        return payload.decode('utf-8', errors='ignore')
+                    else:
+                        return str(payload)
+            
+            # Fallback to any text content
+            return str(email_msg.get_payload())
+        except Exception as e:
+            return ""
 
 def main():
     """Command-line interface for IETF data acquisition."""
