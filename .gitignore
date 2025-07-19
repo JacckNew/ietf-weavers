@@ -42,64 +42,18 @@ ENV/
 ehthumbs.db
 Thumbs.db
 
-# Project specific
+# Logs
 *.log
-batch_download.log
+
+# Temporary directories
 temp/
 tmp/
 
-# Large data files - should not be in version control
+# Large data files (exclude entire directories)
 data/
 cache/
-*.sqlite
-*.db
-*.json
 
-# Test files and temporary files
-test_*.py
-check_*.py
-*_test.py
-*_temp.py
-pipeline_test.json
-*_sql_*.json
-*_parallel_*.json
-*_dict.json
-
-# Cache and temporary data
-cache/ietf-dt-cache.sqlite
-cache/ietfdata.sqlite
-ietfdata.sqlite
-
-# Temporary report files
-*_REPORT.md
-*_COMPLETION.md
-*_SOLUTION.md
-*_SUMMARY.md
-CLEANUP_REPORT.md
-PROJECT_COMPLETION*.md
-DATA_ACQUISITION_SOLUTION.md
-IETF_INTEGRATION_SUMMARY.md
-instruction.md
-
-# Data files (keep sample data but ignore large datasets)
-data/*.mbox
-data/*.json.gz
-data/large-*
-data/ietf_parallel_*.json
-data/ietf_sql_*.json
-data/pipeline_test.json
-data/*_dict.json
-# Exclude all large IETF batch download files
-data/ietf_batch_*.json
-data/ietf_*_20*.json
-
-# Keep visualization outputs
+# Keep only visualization outputs (exceptions to data/ exclusion)
+!visualisation/
 !visualisation/*.json
 !visualisation/*.csv
-
-# Jupyter checkpoints
-.ipynb_checkpoints/
-
-# Logs
-*.log
-logs/
