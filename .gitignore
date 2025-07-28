@@ -49,9 +49,15 @@ Thumbs.db
 temp/
 tmp/
 
-# Large data files (exclude entire directories)
-data/
-cache/
+# Large data files - be selective
+data/*_tier*.json          # Ignore large tier files (1.57GB, 596MB, 564MB)
+cache/ietfdata.sqlite       # Raw IETF data (9.02GB)
+cache/ietf-dt-cache.sqlite  # Datatracker cache
+
+# Keep small data files
+!data/data.json             # Visualization data (25KB)
+!data/ietf_large_sample.json # Sample data (21KB)
+!cache/ietf_network.db      # Network database (0.12MB)
 
 # Keep only visualization outputs (exceptions to data/ exclusion)
 !visualisation/

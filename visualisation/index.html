@@ -79,6 +79,47 @@
             font-size: 14px;
         }
         
+        .control-group input[type="range"] {
+            width: 70%;
+            margin-right: 10px;
+        }
+        
+        .control-group span {
+            font-weight: bold;
+            color: #007cba;
+            min-width: 30px;
+            display: inline-block;
+        }
+        
+        #refresh-data:hover {
+            background: #005a8a;
+        }
+        
+        #refresh-data:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .api-status {
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            text-align: center;
+        }
+        
+        .api-available {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .api-unavailable {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
         .stats {
             background: #f8f9fa;
             padding: 15px;
@@ -148,10 +189,15 @@
     <div class="header">
         <h1>🧠 IETF Weavers</h1>
         <p>Social and Discursive Dynamics of Internet Standard-making</p>
+        <p style="font-size: 0.9em; opacity: 0.8;">Enhanced with Live API Backend & Real-time Filtering</p>
     </div>
     
     <div class="container">
         <div class="sidebar">
+            <div id="api-status" class="api-status" style="display: none;">
+                <!-- API status will be populated by JavaScript -->
+            </div>
+            
             <div class="stats" id="stats">
                 <h3>Network Statistics</h3>
                 <div class="stat-item">
@@ -201,6 +247,32 @@
                     <label for="min-degree">Minimum Degree:</label>
                     <input type="range" id="min-degree" min="0" max="50" value="1">
                 </div>
+                
+                <div class="control-group">
+                    <label for="min-emails">Minimum Emails:</label>
+                    <input type="range" id="min-emails" min="0" max="100" value="0">
+                    <span id="min-emails-value">0</span>
+                </div>
+                
+                <div class="control-group">
+                    <label for="max-nodes">Max Nodes:</label>
+                    <input type="range" id="max-nodes" min="50" max="1000" value="500">
+                    <span id="max-nodes-value">500</span>
+                </div>
+                
+                <div class="control-group">
+                    <label for="data-source">Data Source:</label>
+                    <select id="data-source">
+                        <option value="api">Live API (Recommended)</option>
+                        <option value="json">Static JSON File</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <button id="refresh-data" style="width: 100%; padding: 10px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        🔄 Refresh Data
+                    </button>
+                </div>
             </div>
             
             <div class="legend" id="legend">
@@ -223,33 +295,20 @@
         let width, height;
         let colorScale, sizeScale;
         
+        // API configuration
+        const API_BASE = 'http://localhost:8000';
+        let isApiAvailable = false;
+        
         // Initialize visualization
         async function init() {
             try {
-                console.log('Attempting to load data.json...');
-                // Load data
-                const response = await fetch('data.json');
-                console.log('Fetch response:', response);
+                console.log('Initializing IETF Weavers visualization...');
                 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                // Check API availability
+                await checkApiAvailability();
                 
-                data = await response.json();
-                console.log('Data loaded successfully:', data);
-                
-                // Validate data structure
-                if (!data.nodes || !Array.isArray(data.nodes)) {
-                    throw new Error('Invalid data format: missing or invalid nodes array');
-                }
-                
-                if (!data.links || !Array.isArray(data.links)) {
-                    console.warn('Warning: missing or invalid links array, using empty array');
-                    data.links = [];
-                }
-                
-                // Update statistics
-                updateStats();
+                // Load data based on selected source
+                await loadData();
                 
                 // Setup SVG
                 setupSVG();
@@ -261,34 +320,205 @@
                 setupControls();
                 
             } catch (error) {
-                console.error('Error loading data:', error);
-                const errorMsg = `
-                    <div style="color: red; padding: 20px;">
-                        <h3>Error loading data</h3>
-                        <p><strong>Error:</strong> ${error.message}</p>
-                        <p><strong>Solutions:</strong></p>
-                        <ul>
-                            <li>Make sure you're accessing via HTTP server (not file://)</li>
-                            <li>Run: <code>python serve_visualization.py</code></li>
-                            <li>Or run: <code>python -m http.server 8000</code> in visualisation/ directory</li>
-                            <li>Check that data.json exists and is valid</li>
-                        </ul>
-                    </div>
-                `;
-                document.getElementById('stats').innerHTML = errorMsg;
+                console.error('Error during initialization:', error);
+                showError(error);
             }
+        }
+        
+        async function checkApiAvailability() {
+            const statusDiv = document.getElementById('api-status');
+            statusDiv.style.display = 'block';
+            
+            try {
+                statusDiv.textContent = '🔍 Checking API...';
+                statusDiv.className = 'api-status';
+                
+                const response = await fetch(`${API_BASE}/api/health`, {
+                    method: 'GET',
+                    timeout: 5000
+                });
+                
+                if (response.ok) {
+                    isApiAvailable = true;
+                    console.log('✅ API is available');
+                    document.getElementById('data-source').value = 'api';
+                    statusDiv.textContent = '✅ API Connected (Live Data)';
+                    statusDiv.className = 'api-status api-available';
+                } else {
+                    throw new Error('API health check failed');
+                }
+            } catch (error) {
+                console.warn('⚠️ API not available, will use JSON fallback:', error.message);
+                isApiAvailable = false;
+                document.getElementById('data-source').value = 'json';
+                statusDiv.textContent = '⚠️ API Offline (Static Data)';
+                statusDiv.className = 'api-status api-unavailable';
+            }
+        }
+        
+        async function loadData() {
+            const dataSource = document.getElementById('data-source').value;
+            
+            try {
+                if (dataSource === 'api' && isApiAvailable) {
+                    await loadDataFromAPI();
+                } else {
+                    await loadDataFromJSON();
+                }
+                
+                console.log('Data loaded successfully:', {
+                    nodes: data.nodes?.length || 0,
+                    links: data.links?.length || 0,
+                    topics: data.topics?.length || 0
+                });
+                
+                updateStats();
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                
+                // Try fallback if API fails
+                if (dataSource === 'api') {
+                    console.log('Attempting JSON fallback...');
+                    try {
+                        await loadDataFromJSON();
+                        updateStats();
+                        return;
+                    } catch (fallbackError) {
+                        console.error('Fallback also failed:', fallbackError);
+                    }
+                }
+                
+                throw error;
+            }
+        }
+        
+        async function loadDataFromAPI() {
+            console.log('Loading data from API...');
+            
+            // Get filter parameters
+            const minEmails = +document.getElementById('min-emails').value;
+            const maxNodes = +document.getElementById('max-nodes').value;
+            const minDegree = +document.getElementById('min-degree').value / 1000;
+            
+            // Build API query parameters
+            const params = new URLSearchParams({
+                limit: maxNodes,
+                min_emails: minEmails,
+                min_degree: minDegree
+            });
+            
+            // Load graph data
+            const graphResponse = await fetch(`${API_BASE}/api/graph?${params}`);
+            if (!graphResponse.ok) {
+                throw new Error(`API error: ${graphResponse.status} ${graphResponse.statusText}`);
+            }
+            
+            const graphData = await graphResponse.json();
+            
+            // Load additional data in parallel
+            const [statsResponse, topicsResponse] = await Promise.all([
+                fetch(`${API_BASE}/api/stats`),
+                fetch(`${API_BASE}/api/topics`)
+            ]);
+            
+            const [stats, topics] = await Promise.all([
+                statsResponse.ok ? statsResponse.json() : {},
+                topicsResponse.ok ? topicsResponse.json() : []
+            ]);
+            
+            // Combine data in expected format
+            data = {
+                nodes: graphData.nodes || [],
+                links: graphData.links || [],
+                topics: topics || [],
+                metadata: stats || {}
+            };
+            
+            console.log('✅ Data loaded from API');
+        }
+        
+        async function loadDataFromJSON() {
+            console.log('Loading data from JSON file...');
+            
+            const response = await fetch('data.json');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            data = await response.json();
+            
+            // Validate data structure
+            if (!data.nodes || !Array.isArray(data.nodes)) {
+                throw new Error('Invalid data format: missing or invalid nodes array');
+            }
+            
+            if (!data.links || !Array.isArray(data.links)) {
+                console.warn('Warning: missing or invalid links array, using empty array');
+                data.links = [];
+            }
+            
+            console.log('✅ Data loaded from JSON');
+        }
+        
+        function showError(error) {
+            const errorMsg = `
+                <div style="color: red; padding: 20px;">
+                    <h3>🚨 Error Loading Data</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p><strong>Solutions:</strong></p>
+                    <ul>
+                        <li><strong>For API mode:</strong> Make sure the FastAPI server is running on port 8000</li>
+                        <li>Run: <code>python -m uvicorn server.api:app --reload --port 8000</code></li>
+                        <li><strong>For JSON mode:</strong> Serve via HTTP server (not file://)</li>
+                        <li>Run: <code>python serve_visualization.py</code></li>
+                        <li>Or run: <code>python -m http.server 8000</code> in visualisation/ directory</li>
+                        <li>Check that data.json exists and is valid</li>
+                        <li>Try switching data source using the dropdown above</li>
+                    </ul>
+                </div>
+            `;
+            document.getElementById('stats').innerHTML = errorMsg;
         }
         
         function updateStats() {
             if (!data) return;
             
-            document.getElementById('node-count').textContent = data.nodes?.length || 0;
-            document.getElementById('link-count').textContent = data.links?.length || 0;
-            document.getElementById('topic-count').textContent = data.topics?.length || 0;
+            const nodeCount = data.nodes?.length || 0;
+            const linkCount = data.links?.length || 0;
+            const topicCount = data.topics?.length || 0;
+            
+            document.getElementById('node-count').textContent = nodeCount;
+            document.getElementById('link-count').textContent = linkCount;
+            document.getElementById('topic-count').textContent = topicCount;
             
             // Count communities
             const communities = new Set(data.nodes?.map(d => d.community) || []);
             document.getElementById('community-count').textContent = communities.size;
+            
+            // Update metadata display if available
+            if (data.metadata) {
+                const statsDiv = document.getElementById('stats');
+                
+                // Add additional stats if available from API
+                if (data.metadata.total_emails) {
+                    const existingItems = statsDiv.querySelectorAll('.stat-item');
+                    const lastItem = existingItems[existingItems.length - 1];
+                    
+                    // Only add if not already present
+                    if (!document.getElementById('total-emails')) {
+                        const totalEmailsDiv = document.createElement('div');
+                        totalEmailsDiv.className = 'stat-item';
+                        totalEmailsDiv.innerHTML = `
+                            <span>Total Emails:</span>
+                            <span id="total-emails">${data.metadata.total_emails.toLocaleString()}</span>
+                        `;
+                        lastItem.insertAdjacentElement('afterend', totalEmailsDiv);
+                    } else {
+                        document.getElementById('total-emails').textContent = data.metadata.total_emails.toLocaleString();
+                    }
+                }
+            }
         }
         
         function setupSVG() {
@@ -316,36 +546,54 @@
         function createVisualization() {
             if (!data || !data.nodes) return;
             
-            // Filter data based on controls
-            const minDegree = +document.getElementById('min-degree').value;
+            // Get filter values from API-enabled controls
+            const dataSource = document.getElementById('data-source').value;
+            let filteredNodes, filteredLinks;
             
-            // Fix: use degree_centrality instead of degree, and make filtering more permissive
-            let filteredNodes = data.nodes.filter(d => (d.degree_centrality || 0) >= minDegree / 1000);
-            
-            // If filtering results in too few nodes, use most active participants
-            if (filteredNodes.length < 20) {
-                console.log('Too few nodes after filtering, using top participants by email count');
-                filteredNodes = data.nodes
-                    .sort((a, b) => (b.email_count || 0) - (a.email_count || 0))
-                    .slice(0, Math.min(100, data.nodes.length));
+            if (dataSource === 'api' && isApiAvailable) {
+                // For API data, the filtering is already done server-side
+                filteredNodes = data.nodes;
+                filteredLinks = data.links;
+            } else {
+                // For JSON data, apply client-side filtering
+                const minDegree = +document.getElementById('min-degree').value;
+                const minEmails = +document.getElementById('min-emails').value;
+                const maxNodes = +document.getElementById('max-nodes').value;
+                
+                // Filter nodes by degree centrality and email count
+                filteredNodes = data.nodes.filter(d => 
+                    (d.degree_centrality || 0) >= minDegree / 1000 &&
+                    (d.email_count || 0) >= minEmails
+                );
+                
+                // Sort by importance and limit
+                filteredNodes = filteredNodes
+                    .sort((a, b) => (b.degree_centrality || 0) - (a.degree_centrality || 0))
+                    .slice(0, maxNodes);
+                
+                // If still too few nodes, get most active participants
+                if (filteredNodes.length < 20) {
+                    console.log('Too few nodes after filtering, using top participants by email count');
+                    filteredNodes = data.nodes
+                        .sort((a, b) => (b.email_count || 0) - (a.email_count || 0))
+                        .slice(0, Math.min(100, data.nodes.length));
+                }
+                
+                // Filter links
+                const nodeIds = new Set(filteredNodes.map(d => d.id));
+                filteredLinks = data.links.filter(d => {
+                    const sourceId = typeof d.source === 'object' ? d.source.id : d.source;
+                    const targetId = typeof d.target === 'object' ? d.target.id : d.target;
+                    return nodeIds.has(sourceId) && nodeIds.has(targetId);
+                }).map(d => ({
+                    source: typeof d.source === 'object' ? d.source.id : d.source,
+                    target: typeof d.target === 'object' ? d.target.id : d.target,
+                    weight: d.weight || 1,
+                    interaction_type: d.interaction_type || 'reply'
+                }));
             }
             
-            const nodeIds = new Set(filteredNodes.map(d => d.id));
-            
-            // Filter links - ensure we get the source/target ids correctly
-            const filteredLinks = data.links.filter(d => {
-                const sourceId = typeof d.source === 'object' ? d.source.id : d.source;
-                const targetId = typeof d.target === 'object' ? d.target.id : d.target;
-                return nodeIds.has(sourceId) && nodeIds.has(targetId);
-            }).map(d => ({
-                // Create fresh link objects to avoid reference issues
-                source: typeof d.source === 'object' ? d.source.id : d.source,
-                target: typeof d.target === 'object' ? d.target.id : d.target,
-                weight: d.weight || 1,
-                interaction_type: d.interaction_type || 'reply'
-            }));
-            
-            console.log(`Filtered nodes: ${filteredNodes.length}, links: ${filteredLinks.length}`);
+            console.log(`Displaying ${filteredNodes.length} nodes and ${filteredLinks.length} links`);
             
             // Clear previous visualization
             g.selectAll('*').remove();
@@ -487,10 +735,81 @@
         }
         
         function setupControls() {
-            // Add event listeners to controls
+            // Add event listeners to visualization controls
             document.getElementById('node-size').addEventListener('change', createVisualization);
             document.getElementById('node-color').addEventListener('change', createVisualization);
-            document.getElementById('min-degree').addEventListener('input', createVisualization);
+            
+            // For JSON mode, add immediate filtering
+            document.getElementById('min-degree').addEventListener('input', (e) => {
+                const dataSource = document.getElementById('data-source').value;
+                if (dataSource === 'json') {
+                    createVisualization();
+                }
+            });
+            
+            // Min emails slider with value display
+            const minEmailsSlider = document.getElementById('min-emails');
+            const minEmailsValue = document.getElementById('min-emails-value');
+            minEmailsSlider.addEventListener('input', (e) => {
+                minEmailsValue.textContent = e.target.value;
+                const dataSource = document.getElementById('data-source').value;
+                if (dataSource === 'json') {
+                    createVisualization();
+                }
+            });
+            
+            // Max nodes slider with value display
+            const maxNodesSlider = document.getElementById('max-nodes');
+            const maxNodesValue = document.getElementById('max-nodes-value');
+            maxNodesSlider.addEventListener('input', (e) => {
+                maxNodesValue.textContent = e.target.value;
+                const dataSource = document.getElementById('data-source').value;
+                if (dataSource === 'json') {
+                    createVisualization();
+                }
+            });
+            
+            // Data source selector
+            document.getElementById('data-source').addEventListener('change', async (e) => {
+                try {
+                    await loadData();
+                    createVisualization();
+                } catch (error) {
+                    console.error('Error switching data source:', error);
+                    showError(error);
+                }
+            });
+            
+            // Refresh data button
+            document.getElementById('refresh-data').addEventListener('click', async () => {
+                const button = document.getElementById('refresh-data');
+                const originalText = button.textContent;
+                
+                try {
+                    button.textContent = '🔄 Loading...';
+                    button.disabled = true;
+                    
+                    await loadData();
+                    createVisualization();
+                    
+                    button.textContent = '✅ Refreshed!';
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                    }, 2000);
+                    
+                } catch (error) {
+                    console.error('Error refreshing data:', error);
+                    button.textContent = '❌ Error';
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                    }, 2000);
+                    showError(error);
+                } finally {
+                    button.disabled = false;
+                }
+            });
+            
+            // Link strength control
             document.getElementById('link-strength').addEventListener('input', (e) => {
                 if (simulation && simulation.force('link')) {
                     const strength = +e.target.value / 100;
@@ -498,6 +817,10 @@
                     simulation.alpha(0.3).restart();
                 }
             });
+            
+            // Initialize slider value displays
+            minEmailsValue.textContent = minEmailsSlider.value;
+            maxNodesValue.textContent = maxNodesSlider.value;
         }
         
         function updateLegend() {

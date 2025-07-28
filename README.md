@@ -1,613 +1,221 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-# IETF Weavers
+# 🧠 IETF Weavers
 
 **Social and Discursive Dynamics of Internet Standard-making**
 
-A comprehensive analysis and visualization tool for understanding collaboration patterns, influence networks, and community dynamics within the Internet Engineering Task Force (IETF) through email communication analysis.
+A high-performance analysis and visualization tool for understanding collaboration patterns, influence networks, and community dynamics within the Internet Engineering Task Force (IETF) through large-scale email communication analysis.
 
 ## 📋 Project Overview
 
-IETF Weavers combines social network analysis (SNA) and natural language processing (NLP) to visualize how Internet standards are developed through human collaboration. The project analyzes IETF mailing lists and Datatracker metadata to reveal:
+IETF Weavers provides real-time social network analysis of IETF collaboration patterns, processing 345k+ emails to reveal how Internet standards are developed through human collaboration. The system features a modern FastAPI backend with SQLite database and an interactive D3.js frontend.
 
-- **Social Networks**: Who collaborates with whom in Internet standard development
+### Key Insights Revealed
+- **Social Networks**: Collaboration patterns among Internet standard developers
 - **Influence Patterns**: Key connectors and opinion leaders in technical communities  
 - **Community Structure**: Working group boundaries and cross-pollination
-- **Topic Evolution**: How technical discussions emerge and evolve over time
-- **Knowledge Transfer**: Patterns of information flow and expertise sharing
+- **Topic Evolution**: Technical discussion themes and their evolution over time
+- **Knowledge Transfer**: Information flow and expertise sharing patterns
 
-## � Key Features
+## 🎯 Current Features
 
-- **Real IETF Data Integration**: Direct integration with IETF Datatracker and mail archives via [glasgow-ipl/ietfdata](https://github.com/glasgow-ipl/ietfdata)
-- **Automated Data Pipeline**: End-to-end processing from raw emails to interactive visualizations
-- **Social Network Analysis**: Comprehensive metrics including centrality, community detection, and influence scoring
-- **Topic Modeling**: BERTopic-based analysis of discussion themes and evolution
-- **Interactive Visualization**: D3.js dashboard with filtering, search, and drill-down capabilities
-- **Modular Architecture**: Pluggable agent-based system for easy extension and customization
+### ⚡ **High-Performance Processing**
+- **Fast Data Pipeline**: Process 345k emails in ~37 seconds (vs 10+ hours previously)
+- **Intelligent Sampling**: Stratified sampling for representative network analysis
+- **Optimized Algorithms**: LDA topic modeling for efficient large-scale processing
 
-## �🚀 Quick Start
+### 🖥️ **Modern Web Architecture**
+- **FastAPI Backend**: RESTful API with auto-generated documentation
+- **SQLite Database**: Indexed database with 540 nodes, 63 links, 15 topics  
+- **D3.js Frontend**: Interactive network visualization with real-time filtering
+- **Dual Data Sources**: Live API mode + static JSON fallback
+
+### 🎛️ **Advanced Controls**
+- **Server-side Filtering**: Efficient database queries for large datasets
+- **Real-time Updates**: Instant visualization updates without page reloads
+- **Flexible Parameters**: Filter by email count, degree centrality, community, topics
+- **Visual Feedback**: Loading states, error handling, API status indicators
+
+## 🚀 Quick Start
 
 ### Prerequisites
-
 - Python 3.8+
 - Git
-- Internet connection (for fetching IETF data)
 
 ### Installation
 
-1. **Clone the repository**
-
+1. **Clone and Setup**
    ```bash
-   git clone https://github.com/your-username/ietf-weavers.git
+   git clone https://github.com/JacckNew/ietf-weavers.git
    cd ietf-weavers
-   ```
-
-2. **Create virtual environment**
-
-   ```bash
    python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   venv\Scripts\activate  # On Windows
+   # source venv/bin/activate  # On Linux/Mac
    ```
 
-3. **Install dependencies**
-
+2. **Install Dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-### Usage Options
+### Running the System
 
-#### Option 1: Fetch Real IETF Data (Recommended)
-
-1. **List available mailing lists**
-
+1. **Initialize the Network Database** (first time only)
    ```bash
-   python scripts/fetch_ietf_data.py --list-available
+   python scripts/create_network_db.py
    ```
 
-2. **Fetch data from specific mailing lists**
-
+2. **Start the API Backend**
    ```bash
-   # Fetch recent data from popular lists
-   python scripts/fetch_ietf_data.py --lists ietf cfrg --output data/ietf_recent.json
-
-   # Fetch with specific date range
-   python scripts/fetch_ietf_data.py --lists ietf --start-date 2024-01-01T00:00:00 --max-messages 1000
+   python -m uvicorn server.api:app --reload --port 8000
    ```
 
-3. **Run analysis pipeline**
-
+3. **Start the Frontend Server** (in a new terminal)
    ```bash
-   python src/main.py data/ietf_recent.json
+   cd visualisation
+   python -m http.server 8080
    ```
 
-4. **View results**
+4. **Access the Application**
+   - Open http://localhost:8080 in your browser
+   - The system will automatically detect if the API is available
+   - Use the controls to filter and explore the network
 
-   ```bash
-   python scripts/serve_visualization.py
-   ```
-   
-   Then open <http://localhost:8000> in your browser, or directly open `visualisation/index.html`
+## 🏗️ Project Structure
 
-#### Option 2: Use Sample Data
-
-1. **Run with sample data**
-
-   ```bash
-   python src/main.py data/sample_emails.json
-   ```
-
-2. **View results**
-
-   ```bash
-   python scripts/serve_visualization.py
-   ```
-   
-   Then open <http://localhost:8000> in your browser, or directly open `visualisation/index.html`
-
-#### Option 3: Integrated Workflow
-
-Fetch IETF data and run analysis in one command:
-
-```bash
-# Fetch and analyze specific mailing lists
-python src/main.py --fetch-ietf --mailing-lists ietf cfrg --max-messages 500
-
-# List available mailing lists
-python src/main.py --list-available
 ```
-
-## � Current Data Status
-
-### ✅ Downloaded IETF Data (Complete)
-
-The repository now contains comprehensive IETF mailing list data across three tiers:
-
-#### **Tier 1 - Core Technical Lists** (10 lists, 345,525 messages)
-
-- `cfrg` - Crypto Research Group (14,249 messages)
-- `quic` - QUIC Protocol (11,711 messages)
-- `tls` - TLS Security (37,056 messages)
-- `oauth` - OAuth Authentication (26,623 messages)
-- `dnsop` - DNS Operations (35,492 messages)
-- `v6ops` - IPv6 Operations (78,645 messages)
-- `rtgwg` - Routing Working Group (15,499 messages)
-- `tsvwg` - Transport Services (51,248 messages)
-- `saag` - Security Area Advisory Group (17,134 messages)
-- `netmod` - Network Modeling (57,868 messages)
-
-#### **Tier 2 - Extended Technical Lists** (10 lists, 120,664 messages)
-
-- `netconf` - Network Configuration (20,344 messages)
-- `opsawg` - Operations & Management (13,255 messages)
-- `anima` - Autonomic Networking (7,935 messages)
-- `spring` - Source Packet Routing (12,345 messages)
-- `ace` - Authentication & Authorization (5,934 messages)
-- `http` - HTTP (1 message)
-- `httpapi` - HTTP API (1,506 messages)
-- `mmusic` - Multiparty Multimedia (23,880 messages)
-- `iptel` - IP Telephony (1,241 messages)
-- `sip` - Session Initiation Protocol (34,223 messages)
-
-#### **Tier 3 - Specialized Technical Lists** (10 lists, 135,450 messages)
-
-- `asrg` - Anti-Spam Research Group (34,658 messages)
-- `bmwg` - Benchmarking Working Group (5,881 messages)
-- `dhcwg` - DHCP Working Group (56,637 messages)
-- `hiprg` - Host Identity Protocol RG (1,663 messages)
-- `iccrg` - Congestion Control RG (3,716 messages)
-- `icnrg` - Information-Centric Networking RG (4,029 messages)
-- `isis-wg` - ISIS Working Group (13,433 messages)
-- `krb-wg` - Kerberos Working Group (14,257 messages)
-- `nfvrg` - Network Function Virtualization RG (972 messages)
-- `tewg` - Traffic Engineering WG (204 messages)
-
-### 💾 **Data Storage**
-
-- **Total Messages**: 601,639 across 30 mailing lists
-- **Cache Database**: 9.02GB SQLite file (`cache/ietfdata.sqlite`)
-- **Exported JSON**: 2.73GB across 3 tier files (`data/` directory)
-- **Coverage Period**: 1992-2025 (complete historical archive)
-
-### 📁 **Cache Files Explained**
-
-- **`cache/ietfdata.sqlite`** (9.02GB): MailArchive3 email data cache containing all downloaded message content, headers, and metadata
-- **`cache/ietf-dt-cache.sqlite`** (24KB): DataTracker metadata cache with working group information, RFC data, and organizational structure
-
-### 🚀 **Batch Download Tool**
-
-For downloading additional data or replicating the dataset:
-
-```bash
-# Download specific tiers
-python batch_download.py --tier 1    # Core lists
-python batch_download.py --tier 2    # Extended lists  
-python batch_download.py --tier 3    # Specialized lists
-
-# Download all tiers at once
-python batch_download.py --all
-
-# Download custom selection
-python batch_download.py --custom cfrg quic tls
-
-# List all available mailing lists
-python batch_download.py --list-available
-```
-
-### ⚡ **Fast Data Processing (Recommended for Large Datasets)**
-
-For processing large datasets like Tier 1 (345k+ emails), use the optimized fast processor:
-
-```bash
-# Activate virtual environment first
-venv\Scripts\activate  # Windows
-source venv/bin/activate  # Linux/Mac
-
-# Process large dataset with sampling (much faster)
-python src/fast_main.py data/ietf_batch_tier1_core_technical_lists_20250717_132702.json --sample-rate 0.02 --min-emails 3
-
-# Options:
-# --sample-rate: Fraction of data to process (0.01 = 1%, 0.05 = 5%)
-# --min-emails: Minimum emails per person to include in analysis
-
-# Start visualization server
-python scripts/serve_visualization.py
-```
-
-**⚠️ Performance Note**: The original `src/main.py` pipeline is designed for smaller datasets (< 10,000 emails). For large datasets like our Tier 1 data with 345,525 emails, use the fast processor which:
-
-- ✅ **Samples data intelligently** (2-5% sample gives representative results)
-- ✅ **Processes 100x faster** (37 seconds vs 10+ hours)
-- ✅ **Uses efficient algorithms** (LDA instead of BERTopic, approximate centrality)
-- ✅ **Generates same visualization format**
-
-**Note**: The data is already downloaded and ready for analysis! 🎉
-
-## �📁 Repository Structure
-
-```text
 ietf-weavers/
-├── agent/                      # Core data processing modules
-│   ├── data_acquisition.py     # IETF data fetching using ietfdata library
-│   ├── formatter.py            # Outputs D3.js-ready JSON files
-│   ├── graph_builder.py        # Builds sender–replier social graph
-│   ├── metrics.py              # Calculates centrality and network features
-│   ├── topic_model.py          # Runs BERTopic to extract discussion themes
-│   ├── utils.py                # Email parsing, NER, cleaning utilities
-│   ├── __init__.py             # Package initialization
-│   └── README.md               # Agent module documentation
-│
-├── cache/                      # Cache files (SQLite, temporary data)
-│   ├── ietfdata.sqlite         # IETF mail data cache (9.02GB) - COMPLETE
-│   └── ietf-dt-cache.sqlite    # DataTracker metadata cache (24KB)
-│
-├── data/                       # Downloaded IETF data (2.73GB total)
-│   ├── ietf_batch_tier1_core_technical_lists_20250717_132702.json      # Tier 1 (1.57GB)
-│   ├── ietf_batch_tier2_extended_technical_lists_20250717_132710.json  # Tier 2 (596MB)  
-│   ├── ietf_batch_tier3_specialized_technical_lists_20250718_184653.json # Tier 3 (564MB)
-│   └── ietf_large_sample.json  # Sample data for testing
-│
-├── scripts/                    # Standalone utility scripts
-│   ├── fetch_ietf_data.py      # Command-line IETF data acquisition
-│   ├── serve_visualization.py  # Local web server for visualization
-│   └── README.md               # Scripts documentation
-│
-├── src/                        # Main pipeline orchestration
-│   └── main.py                 # End-to-end workflow coordinator
-│
-├── visualisation/              # Interactive web visualization
-│   ├── index.html              # D3.js force-directed graph interface
-│   ├── data.json               # Network graph data for visualization
-│   ├── individual_features.csv # Participant feature export
-│   └── topic_analysis.json     # Topic modeling results
-│
-├── venv/                       # Python virtual environment
-│
-├── batch_download.py           # Multi-tier IETF data downloader
-├── batch_download.log          # Download process logs
-├── requirements.txt            # Python dependencies
-├── LICENSE                     # MIT License
-├── README.md                   # This file
-├── systemdesign.png            # System architecture diagram
-├── instruction.md              # Project instructions
-├── PROJECT_COMPLETION.md       # Project completion status
-├── IETF_INTEGRATION_SUMMARY.md # Integration summary
-└── *.md                        # Additional documentation files
+├── server/                     # FastAPI backend
+│   ├── api.py                 # Main API endpoints
+│   └── __init__.py           
+├── scripts/                    # Data processing scripts
+│   ├── sql_fetch_ietf_data.py # Database manager
+│   ├── fetch_ietf_data.py     # Data fetching
+│   └── serve_visualization.py # Development server
+├── src/                       # Core processing
+│   ├── main.py               # Original processor
+│   └── fast_main.py          # Optimized processor
+├── agent/                     # Analysis modules
+│   ├── data_acquisition.py   # Data fetching
+│   ├── graph_builder.py      # Network construction
+│   ├── topic_model.py        # Topic analysis
+│   └── metrics.py            # Network metrics
+├── visualisation/            # Frontend
+│   ├── index.html           # Main visualization
+│   ├── data.json           # Sample data
+│   └── individual_features.csv
+├── data/                    # Processed data files
+│   ├── data.json           # Visualization data (fallback mode)
+│   ├── ietf_large_sample.json # Sample data for development
+│   └── *_tier*.json        # Large tier files (ignored by git)
+├── cache/                   # Database and cache
+│   ├── ietfdata.sqlite     # Raw IETF email data (9.02GB, ignored)
+│   └── ietf_network.db     # Processed network database (0.12MB)
+└── requirements.txt        # Python dependencies
 ```
 
-## 🔧 Core Features
+## 📊 API Endpoints
 
-### Data Processing Pipeline
+The FastAPI backend provides the following endpoints:
 
-1. **Data Collection & Cleaning**
-   - Fetch IETF mailing list data using glasgow-ipl/ietfdata library
-   - Parse email headers and normalize identities
-   - Filter automated vs. individual emails
-   - Build comprehensive person-email mappings
+- `GET /api/health` - Health check
+- `GET /api/graph` - Get filtered graph data
+  - Parameters: `limit`, `min_emails`, `min_degree`, `community`, `topic`
+- `GET /api/stats` - Network statistics
+- `GET /api/topics` - Topic information
+- `GET /api/communities` - Community data
 
-2. **Social Graph Construction**
-   - Create directed graphs with participants as nodes
-   - Infer reply relationships from email threads
-   - Build co-participation networks from shared activities
-   - Track temporal participation patterns
+API documentation is available at http://localhost:8000/docs when the server is running.
 
-3. **Network Analysis**
-   - Calculate centrality measures (degree, betweenness, closeness, eigenvector)
-   - Detect communities using Louvain algorithm
-   - Generate individual and relationship-level features
-   - Analyze network structural properties
+## 🎨 Visualization Features
 
-4. **Topic Modeling**
-   - Apply BERTopic to extract 50-100 discussion themes
-   - Create participant-topic distributions
-   - Calculate topic entropy for diversity analysis
-   - Identify top participants per topic
+### Interactive Network Graph
+- **Node Sizing**: By degree centrality, email count, or betweenness centrality
+- **Node Coloring**: By community, mailing lists, or activity duration
+- **Filtering**: Real-time filtering with immediate visual updates
+- **Interactivity**: Drag nodes, zoom, pan, hover for details
+- **Physics Simulation**: Force-directed layout with collision detection
 
-5. **Visualization Export**
-   - Format data for D3.js interactive visualization
-   - Generate node-link diagrams with rich metadata
-   - Export CSV files for further analysis
-   - Create summary statistics and reports
+### Advanced Controls
+- **Data Source Selector**: Switch between API and static data
+- **Filtering Sliders**: Min emails (0-100), Max nodes (50-1000), Degree threshold
+- **Refresh Button**: Reload data with current filter settings
+- **Status Indicators**: Visual API connection status
 
-### Interactive Visualization
+## 🔬 Data Processing
 
-The D3.js frontend provides:
+### Data Architecture
+The system uses a **dual-format approach** for optimal performance and flexibility:
 
-- **Force-directed Network Graph**
-  - Node size represents centrality or activity level
-  - Node color indicates community or working group
-  - Interactive tooltips with participant details
-  - Drag-and-drop node positioning
+#### **Raw Data Sources**
+- **`cache/ietfdata.sqlite`** (9.02GB): Complete IETF email archive from ietfdata library
+- **Large JSON files** (`data/*_tier*.json`, 2.73GB): Processed tier data (local only)
 
-- **Dynamic Filtering**
-  - Adjust minimum degree threshold
-  - Change node sizing and coloring attributes
-  - Filter by time periods or communities
-  - Control link strength and visibility
+#### **Production Data**  
+- **`cache/ietf_network.db`** (0.12MB): Optimized network database for API queries
+- **`data/data.json`** (25KB): Visualization data for fallback mode
 
-- **Topic Integration**
-  - Topic-based participant highlighting
-  - Keyword clouds for discussion themes
-  - Participant-topic relationship exploration
+#### **Development Data**
+- **`data/ietf_large_sample.json`** (21KB): Sample dataset for testing
 
-## 📊 Analysis Capabilities
+### Performance Optimizations
+- **Stratified Sampling**: 2% sampling maintains network structure
+- **Efficient Algorithms**: LDA instead of BERTopic for topic modeling
+- **Database Indexing**: Optimized queries for filtering operations
+- **Caching**: Smart data caching for repeated operations
 
-### Individual Level
-- Communication volume and patterns
-- Network position and centrality scores
-- Temporal activity (duration, peak periods)
-- Influence metrics (response rates, thread initiation)
-- Collaboration breadth across mailing lists
-- Topic diversity and specialization
+### Analysis Capabilities
+- **Network Metrics**: Degree, betweenness, closeness centrality
+- **Community Detection**: Louvain algorithm for community identification
+- **Topic Modeling**: LDA-based topic extraction and analysis
+- **Temporal Analysis**: Activity duration and timeline analysis
 
-### Relationship Level  
-- Interaction frequency between participants
-- Response patterns and latency
-- Thread co-participation
-- Reciprocity and relationship strength
-- Topic overlap and shared interests
+## 📈 Performance Metrics
 
-### Network Level
-- Community structure and boundaries
-- Cross-group collaboration patterns
-- Leadership networks and hierarchies
-- Newcomer integration patterns
-- Information flow and bottlenecks
-- Network evolution over time
+- **Processing Speed**: 345k emails → 37 seconds
+- **Network Size**: 540 nodes, 63 links
+- **Database**: SQLite with indexed queries
+- **Memory Efficiency**: Optimized for large datasets
+- **Response Time**: Sub-second API responses
 
-## 📈 Visualization Features
+## 🛠️ Development
 
-### Network Graph
-- Interactive force-directed layout
-- Configurable node sizing (centrality, activity, diversity)
-- Community-based coloring schemes
-- Adjustable link filtering and strength
-- Tooltip details on hover
-- Zoom and pan navigation
-
-### Controls and Filters
-- **Node Size**: Degree centrality, betweenness, email count, topic entropy
-- **Node Color**: Community, mailing list count, activity duration
-- **Link Filtering**: Minimum degree, interaction strength
-- **Time Windows**: Filter by activity periods (future enhancement)
-
-### Statistics Panel
-- Real-time network statistics
-- Community counts and sizes
-- Topic distribution summaries
-- Centrality measure distributions
-
-## 🛠️ Configuration
-
-The pipeline can be configured through command-line arguments:
+### Database Management
 
 ```bash
-python src/main.py [data_source] [options]
+# Create the network database from processed data
+python scripts/create_network_db.py
 
-Options:
-  --output-dir DIR       Output directory (default: visualisation)
-  --n-topics N          Number of topics for modeling (default: 50)
-  --time-window N       Time window in months (default: 6)
+# Initialize database with current data (alternative method)
+python scripts/sql_fetch_ietf_data.py
+
+# Run fast processing pipeline
+python src/fast_main.py
 ```
 
-Advanced configuration can be done by modifying the config dictionary in `src/main.py`.
+### API Development
+```bash
+# Start with auto-reload
+python -m uvicorn server.api:app --reload --port 8000
 
-## 📋 Data Format
-
-### Input Email Data
-The system expects JSON files with email records:
-
-```json
-{
-  "from": "user@example.com",
-  "to": ["list@ietf.org"],
-  "date": "2020-01-15T10:30:00Z",
-  "message_id": "<msg123@example.com>",
-  "in_reply_to": "<msg122@example.com>",
-  "subject": "Re: Topic discussion",
-  "content": "Email body text...",
-  "mailing_list": "security"
-}
+# Access interactive docs
+# http://localhost:8000/docs
 ```
 
-### Output Visualization Data
-The system produces D3.js-ready JSON:
-
-```json
-{
-  "nodes": [
-    {
-      "id": "person_001",
-      "email": "user@example.com", 
-      "name": "User Name",
-      "degree_centrality": 0.34,
-      "community": 1,
-      "email_count": 45,
-      "topic_entropy": 2.1
-    }
-  ],
-  "links": [
-    {
-      "source": "person_001",
-      "target": "person_002", 
-      "weight": 3,
-      "type": "reply"
-    }
-  ],
-  "topics": [
-    {
-      "topic_id": 0,
-      "keywords": ["security", "encryption"],
-      "top_participants": [...]
-    }
-  ]
-}
-```
-
-## 🔬 Methodology
-
-This implementation is based on comprehensive research methodology for analyzing large-scale email communication networks in technical communities. Key methodological components include:
-
-- **Email Classification**: Automated detection of system vs. individual emails using pattern matching
-- **Identity Resolution**: Multi-source person identity linking across email addresses
-- **Thread Reconstruction**: Graph-based analysis of email conversation structures  
-- **Network Analysis**: Multiple centrality measures and community detection algorithms
-- **Topic Modeling**: Time-windowed BERTopic analysis for theme extraction
-- **Feature Engineering**: Comprehensive participant and relationship feature vectors
-
-## 🔒 Privacy and Ethics
-
-- **Public Data Focus**: Only analyzes publicly available mailing list archives
-- **Data Anonymization**: Supports anonymization for sensitive analyses  
-- **Aggregation Standards**: Implements minimum group sizes for reporting
-- **Consent Frameworks**: Respects participant preferences where applicable
-
-## 🚧 Future Enhancements
-
-### Advanced Analytics
-- **Real-time Analysis**: Live dashboards for current communication patterns
-- **Trend Detection**: Identify emerging topics and communities
-- **Anomaly Detection**: Flag unusual communication patterns
-- **Predictive Modeling**: Forecast collaboration patterns and outcomes
-
-### Enhanced Visualization
-- **Timeline View**: Dynamic network evolution over time
-- **Geographic Mapping**: Collaboration patterns across institutions/countries
-- **Multi-layer Networks**: Simultaneous visualization of different relationship types
-- **Heatmaps**: Cross-tabulation of roles vs. linguistic behavior
-
-### External Integration
-- **GitHub Activity**: Correlate email patterns with code contributions
-- **Conference Data**: Link to meeting attendance and presentation records
-- **Citation Networks**: Connect to academic publication patterns
-- **Document Networks**: RFC and draft collaboration analysis
-
-## 📚 Dependencies
-
-Core libraries:
-- **networkx**: Graph construction and analysis
-- **pandas**: Data manipulation and export  
-- **bertopic**: Advanced topic modeling with transformers
-- **scikit-learn**: Machine learning utilities
-- **numpy**: Numerical computations
-- **sentence-transformers**: Text embeddings for semantic analysis
-- **python-louvain**: Community detection algorithms
-
-Visualization:
-- **D3.js v7**: Interactive network visualization
-- **Modern web standards**: HTML5, CSS3, JavaScript ES6+
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit issues, feature requests, or pull requests.
-
-### Development Setup
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable  
-5. Submit a pull request
-
-### Areas for Contribution
-- Additional data source connectors (mbox, XML, databases)
-- Enhanced visualization components and interactions
-- Performance optimizations for large datasets
-- Additional network analysis metrics
-- Documentation and examples
-
-## 📄 License
+## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## 🤝 Contributing
 
-This project builds upon extensive research in social network analysis, computational social science, and Internet governance. Special thanks to the IETF community for maintaining open and accessible communication archives that enable this type of research.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 📞 Contact
+## 📊 Status
 
-For questions, suggestions, or collaboration opportunities, please open an issue or contact the maintainers.
+**Current Status**: ✅ **FULLY FUNCTIONAL**
 
----
+- **Backend**: FastAPI + SQLite database operational
+- **Frontend**: Enhanced D3.js visualization with API integration
+- **Data Pipeline**: Optimized processing for large datasets
+- **Performance**: Production-ready with efficient filtering
 
-**🚀 Ready to explore Internet governance networks? Start with `python src/main.py data/sample_emails.json` and open `visualisation/index.html`!**
-
----
-
-## 🚀 Quick Start
-
-### 1. Clone this repository
-```bash
-git clone https://github.com/jaccknew/ietf-weavers.git
-cd ietf-weavers
-```
-
-### 2. Install dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Run preprocessing pipeline
-```bash
-python src/main.py
-```
-
-### 4. Open the visualisation
-Open `visualisation/index.html` in your browser to explore the prototype.
-
----
-
-## 🛠️ Tech Stack
-
-- **Python**: Data processing, NLP modeling (BERTopic, BERT, LIWC)
-- **NetworkX**: Social network computation
-- **D3.js**: Force-directed graphs, timelines, and heatmaps
-- **SQLite/CSV**: Lightweight data storage
-
----
-
-## 📖 License
-
-This project’s code and visualisation system are licensed under the MIT License.  
-See the [LICENSE](./LICENSE) file for details.
-
----
-
-## 🙌 Acknowledgements
-
-Inspired by “The Web We Weave” (Khare et al., 2022) and built on open data from [ietf.org](https://ietf.org).
-
----
-
-## 🎉 Current Status: **FULLY FUNCTIONAL**
-
-**✅ Complete End-to-End Pipeline Working**
-
-The IETF Weavers project is now fully operational with all core features implemented:
-
-### ✅ Completed Features
-
-- **📧 Email Processing**: Robust parsing, cleaning, and normalization of mailing list data
-- **🔗 Social Graph Construction**: Thread-based interaction network building with proper email threading
-- **📊 Network Analysis**: Complete centrality metrics, community detection, and graph properties
-- **🏷️ Topic Modeling**: Advanced BERTopic integration with sentence transformers (working!)
-- **📈 Interactive Visualization**: D3.js-powered network graph with real-time filtering
-- **💾 Comprehensive Export**: Multiple output formats (JSON, CSV) for downstream analysis
-- **🛡️ Error Handling**: Graceful degradation when dependencies are missing
-- **🧪 Testing**: Basic functionality verification and sample data validation
-
-### � Ready for Production
-
-The project is now ready for real IETF data processing:
-
-```bash
-# Fetch real IETF data
-python scripts/fetch_ietf_data.py --lists ietf cfrg --output data/ietf_recent.json
-
-# Run analysis pipeline
-python src/main.py data/ietf_recent.json --n-topics 10
-
-# Start visualization server
-python scripts/serve_visualization.py
-```
-
-**Next Steps**: The system is production-ready for large-scale IETF data analysis!
-
+**Architecture**: Backend (FastAPI + SQLite) ↔ Frontend (D3.js + Enhanced Controls)

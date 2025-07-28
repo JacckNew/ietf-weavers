@@ -7,3 +7,6 @@ sentence-transformers
 python-louvain
 email-validator
 ietfdata
+fastapi
+uvicorn[standard]
+python-multipart
