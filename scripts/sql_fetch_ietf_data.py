@@ -215,12 +215,16 @@ class IETFDatabaseManager:
                           community: Optional[List[int]] = None,
                           topic: Optional[int] = None) -> Dict[str, Any]:
         """
-        Get filtered graph data for visualization.
+        Get filtered graph data for visualization with network-preserving filtering.
+        
+        Uses a two-stage approach:
+        1. Select top nodes by importance (degree, emails)
+        2. Add their immediate neighbors to preserve connectivity
         
         Args:
             limit: Maximum number of nodes to return
-            min_degree: Minimum degree centrality threshold
-            min_emails: Minimum email count threshold
+            min_degree: Minimum degree centrality threshold (soft filter)
+            min_emails: Minimum email count threshold (soft filter)
             community: List of community IDs to filter by
             topic: Topic ID to filter by
             
@@ -234,13 +238,8 @@ class IETFDatabaseManager:
         where_clauses = []
         params = []
         
-        if min_degree > 0:
-            where_clauses.append("degree_centrality >= ?")
-            params.append(min_degree)
-        
-        if min_emails > 0:
-            where_clauses.append("email_count >= ?")
-            params.append(min_emails)
+        # Use min_degree and min_emails as soft filters for ranking, not hard filters
+        ranking_sql = "degree_centrality DESC, email_count DESC"
         
         if community:
             placeholders = ','.join(['?'] * len(community))
@@ -254,43 +253,108 @@ class IETFDatabaseManager:
         # Build the final WHERE clause
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         
-        # Get nodes
+        # Step 1: Get core nodes (top nodes by importance)
+        core_limit = min(limit // 2, 250)  # Use half limit for core nodes
+        
         cursor.execute(
             f"""
             SELECT * FROM nodes 
             WHERE {where_sql}
-            ORDER BY degree_centrality DESC, email_count DESC
+            AND degree_centrality >= ?
+            AND email_count >= ?
+            ORDER BY {ranking_sql}
             LIMIT ?
             """,
-            params + [limit]
+            params + [min_degree, min_emails, core_limit]
         )
         
-        nodes = [dict(row) for row in cursor.fetchall()]
+        core_nodes = [dict(row) for row in cursor.fetchall()]
         
-        if not nodes:
+        if not core_nodes:
+            # Fallback: if filters are too restrictive, get top nodes by activity
+            cursor.execute(
+                f"""
+                SELECT * FROM nodes 
+                WHERE {where_sql}
+                ORDER BY email_count DESC, degree_centrality DESC
+                LIMIT ?
+                """,
+                params + [min(50, limit)]
+            )
+            core_nodes = [dict(row) for row in cursor.fetchall()]
+        
+        if not core_nodes:
             self.close()
             return {"nodes": [], "links": []}
         
-        # Get node IDs for link filtering
-        node_ids = [node["id"] for node in nodes]
-        placeholders = ','.join(['?'] * len(node_ids))
+        core_node_ids = [node["id"] for node in core_nodes]
         
-        # Get links between these nodes
+        # Step 2: Find immediate neighbors to preserve connectivity
+        if core_node_ids:
+            core_placeholders = ','.join(['?'] * len(core_node_ids))
+            
+            # Find all neighbors of core nodes
+            cursor.execute(
+                f"""
+                SELECT DISTINCT target as neighbor_id
+                FROM links
+                WHERE source IN ({core_placeholders})
+                  AND target NOT IN ({core_placeholders})
+                UNION
+                SELECT DISTINCT source as neighbor_id  
+                FROM links
+                WHERE target IN ({core_placeholders})
+                  AND source NOT IN ({core_placeholders})
+                """,
+                core_node_ids + core_node_ids + core_node_ids + core_node_ids
+                )
+            
+            neighbor_ids = [row[0] for row in cursor.fetchall()]
+        else:
+            neighbor_ids = []
+        
+        # Step 3: Get neighbor nodes (limited to preserve performance)
+        additional_nodes = []
+        if neighbor_ids:
+            remaining_limit = limit - len(core_nodes)
+            neighbor_limit = min(len(neighbor_ids), remaining_limit)
+            
+            neighbor_placeholders = ','.join(['?'] * len(neighbor_ids))
+            cursor.execute(
+                f"""
+                SELECT * FROM nodes 
+                WHERE id IN ({neighbor_placeholders})
+                ORDER BY degree_centrality DESC, email_count DESC
+                LIMIT ?
+                """,
+                neighbor_ids + [neighbor_limit]
+            )
+            additional_nodes = [dict(row) for row in cursor.fetchall()]
+        
+        # Combine all nodes
+        all_nodes = core_nodes + additional_nodes
+        all_node_ids = [node["id"] for node in all_nodes]
+        all_placeholders = ','.join(['?'] * len(all_node_ids))
+        
+        # Step 4: Get links between all selected nodes
         cursor.execute(
             f"""
             SELECT * FROM links
-            WHERE source IN ({placeholders})
-            AND target IN ({placeholders})
+            WHERE source IN ({all_placeholders})
+            AND target IN ({all_placeholders})
+            ORDER BY weight DESC
             """,
-            node_ids + node_ids
+            all_node_ids + all_node_ids
         )
         
         links = [dict(row) for row in cursor.fetchall()]
         
         self.close()
         
+        print(f"Network filtering result: {len(core_nodes)} core nodes + {len(additional_nodes)} connected nodes = {len(all_nodes)} total, {len(links)} links")
+        
         return {
-            "nodes": nodes,
+            "nodes": all_nodes,
             "links": links
         }
     

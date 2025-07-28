@@ -87,15 +87,24 @@
         .control-group span {
             font-weight: bold;
             color: #007cba;
-            min-width: 30px;
+            min-width: 60px;
             display: inline-block;
+            font-size: 0.9em;
+        }
+        
+        #refresh-data, #reset-filters {
+            transition: background-color 0.2s ease;
         }
         
         #refresh-data:hover {
             background: #005a8a;
         }
         
-        #refresh-data:disabled {
+        #reset-filters:hover {
+            background: #5a6268;
+        }
+        
+        #refresh-data:disabled, #reset-filters:disabled {
             background: #ccc;
             cursor: not-allowed;
         }
@@ -183,6 +192,30 @@
             margin-right: 8px;
             border-radius: 50%;
         }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            z-index: 1000;
+        }
+        
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+            font-size: 24px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -244,8 +277,9 @@
                 </div>
                 
                 <div class="control-group">
-                    <label for="min-degree">Minimum Degree:</label>
+                    <label for="min-degree">Minimum Degree Centrality:</label>
                     <input type="range" id="min-degree" min="0" max="50" value="1">
+                    <span id="min-degree-value">0.001</span>
                 </div>
                 
                 <div class="control-group">
@@ -269,8 +303,14 @@
                 </div>
                 
                 <div class="control-group">
-                    <button id="refresh-data" style="width: 100%; padding: 10px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    <button id="refresh-data" style="width: 100%; padding: 10px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 5px;">
                         🔄 Refresh Data
+                    </button>
+                </div>
+                
+                <div class="control-group">
+                    <button id="reset-filters" style="width: 100%; padding: 8px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        ↺ Reset Filters
                     </button>
                 </div>
             </div>
@@ -283,6 +323,12 @@
         
         <div class="main-content">
             <svg id="graph"></svg>
+            <div id="loading-overlay" class="loading-overlay">
+                <div>
+                    <div class="loading-spinner">🔄</div>
+                    <div>Loading network data...</div>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -294,10 +340,20 @@
         let svg, g, node, link, simulation;
         let width, height;
         let colorScale, sizeScale;
+        let filterTimeout = null; // For debouncing API calls
         
         // API configuration
         const API_BASE = 'http://localhost:8000';
         let isApiAvailable = false;
+        
+        // Loading state management
+        function showLoading() {
+            document.getElementById('loading-overlay').style.display = 'flex';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
         
         // Initialize visualization
         async function init() {
@@ -360,6 +416,8 @@
             const dataSource = document.getElementById('data-source').value;
             
             try {
+                showLoading();
+                
                 if (dataSource === 'api' && isApiAvailable) {
                     await loadDataFromAPI();
                 } else {
@@ -390,6 +448,8 @@
                 }
                 
                 throw error;
+            } finally {
+                hideLoading();
             }
         }
         
@@ -399,14 +459,16 @@
             // Get filter parameters
             const minEmails = +document.getElementById('min-emails').value;
             const maxNodes = +document.getElementById('max-nodes').value;
-            const minDegree = +document.getElementById('min-degree').value / 1000;
+            const minDegree = +document.getElementById('min-degree').value / 1000; // Convert to decimal
             
             // Build API query parameters
             const params = new URLSearchParams({
                 limit: maxNodes,
                 min_emails: minEmails,
-                min_degree: minDegree
+                min_degree: minDegree.toFixed(6) // Ensure proper decimal format
             });
+            
+            console.log('API parameters:', Object.fromEntries(params));
             
             // Load graph data
             const graphResponse = await fetch(`${API_BASE}/api/graph?${params}`);
@@ -555,36 +617,68 @@
                 filteredNodes = data.nodes;
                 filteredLinks = data.links;
             } else {
-                // For JSON data, apply client-side filtering
-                const minDegree = +document.getElementById('min-degree').value;
+                // For JSON data, apply client-side filtering with network preservation
+                const minDegree = +document.getElementById('min-degree').value / 1000; // Convert to decimal
                 const minEmails = +document.getElementById('min-emails').value;
                 const maxNodes = +document.getElementById('max-nodes').value;
                 
-                // Filter nodes by degree centrality and email count
-                filteredNodes = data.nodes.filter(d => 
-                    (d.degree_centrality || 0) >= minDegree / 1000 &&
+                console.log('Client-side filtering with:', { minDegree, minEmails, maxNodes });
+                
+                // Step 1: Get core nodes that meet filter criteria
+                let coreNodes = data.nodes.filter(d => 
+                    (d.degree_centrality || 0) >= minDegree &&
                     (d.email_count || 0) >= minEmails
                 );
                 
-                // Sort by importance and limit
-                filteredNodes = filteredNodes
+                // Sort by importance and limit core nodes
+                coreNodes = coreNodes
                     .sort((a, b) => (b.degree_centrality || 0) - (a.degree_centrality || 0))
-                    .slice(0, maxNodes);
+                    .slice(0, Math.floor(maxNodes * 0.6)); // Use 60% of limit for core nodes
                 
-                // If still too few nodes, get most active participants
-                if (filteredNodes.length < 20) {
-                    console.log('Too few nodes after filtering, using top participants by email count');
-                    filteredNodes = data.nodes
+                // Step 2: If no nodes meet criteria, use top nodes by activity
+                if (coreNodes.length === 0) {
+                    console.log('No nodes meet filter criteria, using top active nodes');
+                    coreNodes = data.nodes
                         .sort((a, b) => (b.email_count || 0) - (a.email_count || 0))
-                        .slice(0, Math.min(100, data.nodes.length));
+                        .slice(0, Math.min(50, maxNodes));
                 }
                 
-                // Filter links
-                const nodeIds = new Set(filteredNodes.map(d => d.id));
+                // Step 3: Find connected nodes to preserve network structure
+                const coreNodeIds = new Set(coreNodes.map(d => d.id));
+                const connectedNodeIds = new Set();
+                
+                // Find nodes that are connected to core nodes
+                data.links.forEach(link => {
+                    const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                    const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                    
+                    if (coreNodeIds.has(sourceId) && !coreNodeIds.has(targetId)) {
+                        connectedNodeIds.add(targetId);
+                    }
+                    if (coreNodeIds.has(targetId) && !coreNodeIds.has(sourceId)) {
+                        connectedNodeIds.add(sourceId);
+                    }
+                });
+                
+                // Step 4: Add connected nodes (limited to remaining space)
+                const remainingSpace = maxNodes - coreNodes.length;
+                const connectedNodes = Array.from(connectedNodeIds)
+                    .map(id => data.nodes.find(n => n.id === id))
+                    .filter(n => n) // Remove undefined
+                    .sort((a, b) => (b.degree_centrality || 0) - (a.degree_centrality || 0))
+                    .slice(0, remainingSpace);
+                
+                // Combine all nodes
+                filteredNodes = [...coreNodes, ...connectedNodes];
+                
+                console.log(`Network preservation: ${coreNodes.length} core + ${connectedNodes.length} connected = ${filteredNodes.length} total`);
+                
+                // Filter links to only include connections between selected nodes
+                const allNodeIds = new Set(filteredNodes.map(d => d.id));
                 filteredLinks = data.links.filter(d => {
                     const sourceId = typeof d.source === 'object' ? d.source.id : d.source;
                     const targetId = typeof d.target === 'object' ? d.target.id : d.target;
-                    return nodeIds.has(sourceId) && nodeIds.has(targetId);
+                    return allNodeIds.has(sourceId) && allNodeIds.has(targetId);
                 }).map(d => ({
                     source: typeof d.source === 'object' ? d.source.id : d.source,
                     target: typeof d.target === 'object' ? d.target.id : d.target,
@@ -704,12 +798,14 @@
             tooltip.style.top = (event.pageY - 10) + 'px';
             
             tooltip.innerHTML = `
-                <strong>${d.name || d.email}</strong><br>
+                <strong>${d.name || d.id}</strong><br>
                 Email Count: ${d.email_count || 0}<br>
-                Degree: ${d.degree || 0}<br>
-                Community: ${d.community}<br>
                 Mailing Lists: ${d.mailing_lists_count || 0}<br>
-                Centrality: ${(d.betweenness_centrality || 0).toFixed(3)}
+                Activity Duration: ${d.activity_duration_days || 0} days<br>
+                Degree Centrality: ${(d.degree_centrality || 0).toFixed(6)}<br>
+                Betweenness Centrality: ${(d.betweenness_centrality || 0).toFixed(6)}<br>
+                Community: ${d.community || 'N/A'}<br>
+                Topic: ${d.dominant_topic || 'N/A'}
             `;
         }
         
@@ -739,34 +835,49 @@
             document.getElementById('node-size').addEventListener('change', createVisualization);
             document.getElementById('node-color').addEventListener('change', createVisualization);
             
-            // For JSON mode, add immediate filtering
-            document.getElementById('min-degree').addEventListener('input', (e) => {
-                const dataSource = document.getElementById('data-source').value;
-                if (dataSource === 'json') {
-                    createVisualization();
-                }
+            // Debounced filter function for API calls
+            function debouncedFilter() {
+                clearTimeout(filterTimeout);
+                filterTimeout = setTimeout(async () => {
+                    try {
+                        const dataSource = document.getElementById('data-source').value;
+                        if (dataSource === 'api' && isApiAvailable) {
+                            console.log('Applying API filters...');
+                            await loadData();
+                            createVisualization();
+                        } else {
+                            console.log('Applying client-side filters...');
+                            createVisualization();
+                        }
+                    } catch (error) {
+                        console.error('Error applying filters:', error);
+                    }
+                }, 300); // 300ms debounce
+            }
+            
+            // Min degree slider with value display and filtering
+            const minDegreeSlider = document.getElementById('min-degree');
+            const minDegreeValue = document.getElementById('min-degree-value');
+            minDegreeSlider.addEventListener('input', (e) => {
+                const value = (+e.target.value / 1000).toFixed(6);
+                minDegreeValue.textContent = value;
+                debouncedFilter();
             });
             
-            // Min emails slider with value display
+            // Min emails slider with value display and filtering
             const minEmailsSlider = document.getElementById('min-emails');
             const minEmailsValue = document.getElementById('min-emails-value');
             minEmailsSlider.addEventListener('input', (e) => {
                 minEmailsValue.textContent = e.target.value;
-                const dataSource = document.getElementById('data-source').value;
-                if (dataSource === 'json') {
-                    createVisualization();
-                }
+                debouncedFilter();
             });
             
-            // Max nodes slider with value display
+            // Max nodes slider with value display and filtering
             const maxNodesSlider = document.getElementById('max-nodes');
             const maxNodesValue = document.getElementById('max-nodes-value');
             maxNodesSlider.addEventListener('input', (e) => {
                 maxNodesValue.textContent = e.target.value;
-                const dataSource = document.getElementById('data-source').value;
-                if (dataSource === 'json') {
-                    createVisualization();
-                }
+                debouncedFilter();
             });
             
             // Data source selector
@@ -809,6 +920,22 @@
                 }
             });
             
+            // Reset filters button
+            document.getElementById('reset-filters').addEventListener('click', async () => {
+                // Reset all filter values to defaults
+                document.getElementById('min-emails').value = 0;
+                document.getElementById('max-nodes').value = 500;
+                document.getElementById('min-degree').value = 1;
+                
+                // Update displayed values
+                document.getElementById('min-emails-value').textContent = '0';
+                document.getElementById('max-nodes-value').textContent = '500';
+                document.getElementById('min-degree-value').textContent = '0.001';
+                
+                // Apply the reset filters
+                debouncedFilter();
+            });
+            
             // Link strength control
             document.getElementById('link-strength').addEventListener('input', (e) => {
                 if (simulation && simulation.force('link')) {
@@ -819,6 +946,7 @@
             });
             
             // Initialize slider value displays
+            minDegreeValue.textContent = (+minDegreeSlider.value / 1000).toFixed(6);
             minEmailsValue.textContent = minEmailsSlider.value;
             maxNodesValue.textContent = maxNodesSlider.value;
         }
